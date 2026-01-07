@@ -92,9 +92,9 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    // ini sebenarnya digunakan jika kita perlu return dari register di controller, misal req.json(user). jika tidak perlu return, bisa dihilangkan saja sebenarnya
-    const registerMock = vi.spyOn(authServiceMock, 'register')
-    registerMock.mockResolvedValue(userFactory({ id: 1, email: 'example@gmail.com' }))
+    vi.mocked(authServiceMock.register!).mockResolvedValue(
+      userFactory({ id: 1, email: 'example@gmail.com' })
+    )
 
     await authController['register'](req as any, res as any, next)
 
@@ -130,8 +130,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
     const err = new Error('zod error because user only send email')
-    const registerMock = vi.spyOn(authServiceMock, 'register')
-    registerMock.mockRejectedValue(err)
+    vi.mocked(authServiceMock.register!).mockRejectedValue(err)
     await authController['register'](req as any, res as any, next)
 
     expect(authServiceMock.register).toHaveBeenCalled()
@@ -144,8 +143,7 @@ describe('AuthController (unit)', () => {
     const req = mockReq({ body: { email: 'example@gmail.com' } })
     const res = mockRes()
     const next = mockNext()
-    const resendVerificationLinkMock = vi.spyOn(authServiceMock, 'resendVerificationLink')
-    resendVerificationLinkMock.mockResolvedValue(undefined) /// undefined, karean service tidak return apa apa alias void
+    vi.mocked(authServiceMock.resendVerificationLink!).mockResolvedValue(undefined)
 
     await authController['resendVerificationLink'](req as any, res as any, next)
 
@@ -165,8 +163,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const verifyEmailMock = vi.spyOn(authServiceMock, 'verifyEmail')
-    verifyEmailMock.mockResolvedValue(undefined)
+    vi.mocked(authServiceMock.verifyEmail!).mockResolvedValue(undefined)
 
     await authController['verifyEmail'](req as any, res as any, next)
 
@@ -204,8 +201,7 @@ describe('AuthController (unit)', () => {
 
     const accessToken: string = 'access token'
     const refreshToken: string = 'refresh token'
-    const loginMock = vi.spyOn(authServiceMock, 'login')
-    loginMock.mockResolvedValue({ accessToken, refreshToken })
+    vi.mocked(authServiceMock.login!).mockResolvedValue({ accessToken, refreshToken })
 
     await authController['login'](req as any, res as any, next)
 
@@ -232,8 +228,9 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const loginMock = vi.spyOn(authServiceMock, 'login')
-    loginMock.mockRejectedValue(new BadRequestException('password not provided'))
+    vi.mocked(authServiceMock.login!).mockRejectedValue(
+      new BadRequestException('password not provided')
+    )
 
     await authController['login'](req as any, res as any, next)
 
@@ -321,8 +318,7 @@ describe('AuthController (unit)', () => {
 
     const accessToken: string = 'access token'
     const refreshToken: string = 'refresh token'
-    const loginMock = vi.spyOn(authServiceMock, 'login')
-    loginMock.mockResolvedValue({ accessToken, refreshToken })
+    vi.mocked(authServiceMock.login!).mockResolvedValue({ accessToken, refreshToken })
 
     await authController['loginAdmin'](req as any, res as any, next)
 
@@ -349,9 +345,9 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const token: string = 'token'
-    const loginMock = vi.spyOn(authServiceMock, 'login')
-    loginMock.mockRejectedValue(new BadRequestException('password not provided'))
+    vi.mocked(authServiceMock.login!).mockRejectedValue(
+      new BadRequestException('password not provided')
+    )
 
     await authController['loginAdmin'](req as any, res as any, next)
 
@@ -391,8 +387,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const getProfileMock = vi.spyOn(authServiceMock, 'getProfile')
-    getProfileMock.mockResolvedValue(
+    vi.mocked(authServiceMock.getProfile!).mockResolvedValue(
       userFactory({ id: 8, name: 'name', email: 'name@gmail.com', role: 'user' })
     )
 
@@ -412,8 +407,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const updateProfileMock = vi.spyOn(authServiceMock, 'updateProfile')
-    updateProfileMock.mockResolvedValue(
+    vi.mocked(authServiceMock.updateProfile!).mockResolvedValue(
       userFactory({ id: 8, name: 'name', email: 'name@gmail.com', role: 'user' })
     )
 
@@ -440,8 +434,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const changePasswordMock = vi.spyOn(authServiceMock, 'changePassword')
-    changePasswordMock.mockResolvedValue(
+    vi.mocked(authServiceMock.changePassword!).mockResolvedValue(
       userFactory({
         id: 8,
         name: 'name',
@@ -470,8 +463,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const changePasswordMock = vi.spyOn(authServiceMock, 'changePassword')
-    changePasswordMock.mockRejectedValue(
+    vi.mocked(authServiceMock.changePassword!).mockRejectedValue(
       new BadRequestException("new password doesn't match with new password confirmation")
     )
 
@@ -490,8 +482,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const sendTokenResetPasswordMock = vi.spyOn(authServiceMock, 'sendTokenResetPassword')
-    sendTokenResetPasswordMock.mockResolvedValue(undefined)
+    vi.mocked(authServiceMock.sendTokenResetPassword!).mockResolvedValue(undefined)
 
     await authController['sendTokenResetPassword'](req as any, res as any, next)
 
@@ -507,8 +498,9 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const sendTokenResetPasswordMock = vi.spyOn(authServiceMock, 'sendTokenResetPassword')
-    sendTokenResetPasswordMock.mockRejectedValue(new BadRequestException('email not provided'))
+    vi.mocked(authServiceMock.sendTokenResetPassword!).mockRejectedValue(
+      new BadRequestException('email not provided')
+    )
 
     await authController['sendTokenResetPassword'](req as any, res as any, next)
 
@@ -532,8 +524,7 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const resetPasswordMock = vi.spyOn(authServiceMock, 'resetPassword')
-    resetPasswordMock.mockResolvedValue(
+    vi.mocked(authServiceMock.resetPassword!).mockResolvedValue(
       userFactory({ email: 'example@gmail.com', password: '12345600' })
     )
 
@@ -554,8 +545,9 @@ describe('AuthController (unit)', () => {
     const res = mockRes()
     const next = mockNext()
 
-    const resetPasswordMock = vi.spyOn(authServiceMock, 'resetPassword')
-    resetPasswordMock.mockRejectedValue(new BadRequestException('email not provided'))
+    vi.mocked(authServiceMock.resetPassword!).mockRejectedValue(
+      new BadRequestException('email not provided')
+    )
 
     await authController['resetPassword'](req as any, res as any, next)
 

@@ -51,9 +51,8 @@ describe('Auth Service (unit)', () => {
   })
 
   it('register -> should call repository.register and return user', async () => {
-    const registerMock = vi.spyOn(authRepositoryPrismaMock, 'register')
     const returnUser = userFactory()
-    registerMock.mockResolvedValue(returnUser)
+    vi.mocked(authRepositoryPrismaMock.register!).mockResolvedValue(returnUser)
 
     const user = await authService['register']({} as any)
 
@@ -64,8 +63,7 @@ describe('Auth Service (unit)', () => {
   })
 
   it('resendVerificationLink -> should call repository.resendVerificationLink', async () => {
-    const resendVerificationLinkMock = vi.spyOn(authRepositoryPrismaMock, 'resendVerificationLink')
-    resendVerificationLinkMock.mockResolvedValue(undefined)
+    vi.mocked(authRepositoryPrismaMock.resendVerificationLink!).mockResolvedValue(undefined)
 
     await authService['resendVerificationLink']('example@gmail.com')
 
@@ -75,8 +73,9 @@ describe('Auth Service (unit)', () => {
     )
   })
   it('resendVerificationLink -> should return and custom handle error', async () => {
-    const resendVerificationLinkMock = vi.spyOn(authRepositoryPrismaMock, 'resendVerificationLink')
-    resendVerificationLinkMock.mockRejectedValue(new NotFoundException('err'))
+    vi.mocked(authRepositoryPrismaMock.resendVerificationLink!).mockRejectedValue(
+      new NotFoundException('err')
+    )
 
     try {
       await authService['resendVerificationLink']('example@gmail.com')
@@ -92,8 +91,7 @@ describe('Auth Service (unit)', () => {
   })
 
   it('verify email -> should call repository.verifyEmail', async () => {
-    const verifyEmailMock = vi.spyOn(authRepositoryPrismaMock, 'verifyEmail')
-    verifyEmailMock.mockResolvedValue()
+    vi.mocked(authRepositoryPrismaMock.verifyEmail!).mockResolvedValue()
 
     await authService['verifyEmail']('token', 'sample@gmail.com')
     expect(authRepositoryPrismaMock.verifyEmail).toHaveBeenCalled()
@@ -101,8 +99,9 @@ describe('Auth Service (unit)', () => {
   })
 
   it('verify email -> should call repository.verifyEmail and custom handle error', async () => {
-    const verifyEmailMock = vi.spyOn(authRepositoryPrismaMock, 'verifyEmail')
-    verifyEmailMock.mockRejectedValue(new BadRequestException('token wrong'))
+    vi.mocked(authRepositoryPrismaMock.verifyEmail!).mockRejectedValue(
+      new BadRequestException('token wrong')
+    )
     try {
       await authService['verifyEmail']('token', 'sample@gmail.com')
     } catch (error) {
@@ -114,8 +113,10 @@ describe('Auth Service (unit)', () => {
   })
 
   it('login -> login for user should call repository.login and return accessToken and refreshToken', async () => {
-    const loginMock = vi.spyOn(authRepositoryPrismaMock, 'login')
-    loginMock.mockResolvedValue({ accessToken: 'access token', refreshToken: 'refresh token' })
+    vi.mocked(authRepositoryPrismaMock.login!).mockResolvedValue({
+      accessToken: 'access token',
+      refreshToken: 'refresh token'
+    })
     const loginPayload = {
       email: 'sample@gmail.com',
       password: '00000000'
@@ -130,8 +131,10 @@ describe('Auth Service (unit)', () => {
   })
 
   it('login -> login for admin should call repository.login and return accessToken and refreshToken', async () => {
-    const loginMock = vi.spyOn(authRepositoryPrismaMock, 'loginAdmin')
-    loginMock.mockResolvedValue({ accessToken: 'access token', refreshToken: 'refresh token' })
+    vi.mocked(authRepositoryPrismaMock.loginAdmin!).mockResolvedValue({
+      accessToken: 'access token',
+      refreshToken: 'refresh token'
+    })
     const loginPayload = {
       email: 'admin@gmail.com',
       password: '00000000'
@@ -146,8 +149,9 @@ describe('Auth Service (unit)', () => {
   })
 
   it('login -> should call repository.login and custom handle error', async () => {
-    const loginMock = vi.spyOn(authRepositoryPrismaMock, 'login')
-    loginMock.mockRejectedValue(new BadRequestException('badd badd'))
+    vi.mocked(authRepositoryPrismaMock.login!).mockRejectedValue(
+      new BadRequestException('badd badd')
+    )
     const loginPayload = {
       email: 'sample@gmail.com'
     }
@@ -165,11 +169,11 @@ describe('Auth Service (unit)', () => {
   })
 
   it('refresh token -> should call repository.refreshToken and return newAccessToken and newRefreshTokenr', async () => {
-    const refreshTokenMock = vi.spyOn(authRepositoryPrismaMock, 'refreshToken')
-    refreshTokenMock.mockResolvedValue({
+    vi.mocked(authRepositoryPrismaMock.refreshToken!).mockResolvedValue({
       newAccessToken: 'new access token',
       newRefreshToken: 'new refresh token'
     })
+
     const rt = 'refreshtoken'
     const result = await authService['refreshToken'](rt)
 
@@ -182,8 +186,10 @@ describe('Auth Service (unit)', () => {
   })
 
   it('refresh token -> should call repository.refreshToken and custom handle error', async () => {
-    const refreshTokenMock = vi.spyOn(authRepositoryPrismaMock, 'refreshToken')
-    refreshTokenMock.mockRejectedValue(new UnauthorizedException('unauthorized'))
+    vi.mocked(authRepositoryPrismaMock.refreshToken!).mockRejectedValue(
+      new UnauthorizedException('unauthorized')
+    )
+
     const rt = 'refreshtoken'
     try {
       await authService['refreshToken'](rt)
@@ -197,9 +203,8 @@ describe('Auth Service (unit)', () => {
   })
 
   it('get profile -> should call repository.getProfile and return a user', async () => {
-    const getProfileMock = vi.spyOn(authRepositoryPrismaMock, 'getProfile')
     const returnUser = userFactory()
-    getProfileMock.mockResolvedValue(returnUser)
+    vi.mocked(authRepositoryPrismaMock.getProfile!).mockResolvedValue(returnUser)
 
     const result = await authService['getProfile'](1)
     expect(authRepositoryPrismaMock.getProfile).toHaveBeenCalled()
@@ -208,8 +213,9 @@ describe('Auth Service (unit)', () => {
   })
 
   it('get profile -> should call repository.getProfile and custorm handle error', async () => {
-    const getProfileMock = vi.spyOn(authRepositoryPrismaMock, 'getProfile')
-    getProfileMock.mockRejectedValue(new NotFoundException('not found'))
+    vi.mocked(authRepositoryPrismaMock.getProfile!).mockRejectedValue(
+      new NotFoundException('not found')
+    )
 
     try {
       await authService['getProfile'](1)
@@ -222,9 +228,8 @@ describe('Auth Service (unit)', () => {
   })
 
   it('update profile -> should call repository.updateProfile and return a user', async () => {
-    const updateProfileMock = vi.spyOn(authRepositoryPrismaMock, 'updateProfile')
     const returnUser = userFactory()
-    updateProfileMock.mockResolvedValue(returnUser)
+    vi.mocked(authRepositoryPrismaMock.updateProfile!).mockResolvedValue(returnUser)
 
     const result = await authService['updateProfile'](1, { name: 'update' })
     expect(authRepositoryPrismaMock.updateProfile).toHaveBeenCalled()
@@ -234,8 +239,9 @@ describe('Auth Service (unit)', () => {
   })
 
   it('update profile -> should call repository.updateProfile and custom handle error', async () => {
-    const updateProfileMock = vi.spyOn(authRepositoryPrismaMock, 'updateProfile')
-    updateProfileMock.mockRejectedValue(new BadRequestException('bad bad'))
+    vi.mocked(authRepositoryPrismaMock.updateProfile!).mockRejectedValue(
+      new BadRequestException('bad bad')
+    )
 
     try {
       await authService['updateProfile'](1, { name: 'update' })
@@ -249,9 +255,8 @@ describe('Auth Service (unit)', () => {
   })
 
   it('change password -> should call repository.changePassword and return a user', async () => {
-    const changePasswordMock = vi.spyOn(authRepositoryPrismaMock, 'changePassword')
     const returnUser = userFactory()
-    changePasswordMock.mockResolvedValue(returnUser)
+    vi.mocked(authRepositoryPrismaMock.changePassword!).mockResolvedValue(returnUser)
 
     const result = await authService['changePassword']('sample@gmail.com', {})
     expect(authRepositoryPrismaMock.changePassword).toHaveBeenCalled()
@@ -261,8 +266,9 @@ describe('Auth Service (unit)', () => {
   })
 
   it('change password -> should call repository.changePassword and custom handle error', async () => {
-    const changePasswordMock = vi.spyOn(authRepositoryPrismaMock, 'changePassword')
-    changePasswordMock.mockRejectedValue(new BadRequestException('bad bad'))
+    vi.mocked(authRepositoryPrismaMock.changePassword!).mockRejectedValue(
+      new BadRequestException('bad bad')
+    )
 
     try {
       await authService['changePassword']('sample@gmail.com', {})
@@ -276,8 +282,7 @@ describe('Auth Service (unit)', () => {
   })
 
   it('send token reset password -> should call repository.sendTokenResetPassword', async () => {
-    const sendTokenResetPassword = vi.spyOn(authRepositoryPrismaMock, 'sendTokenResetPassword')
-    sendTokenResetPassword.mockResolvedValue()
+    vi.mocked(authRepositoryPrismaMock.sendTokenResetPassword!).mockResolvedValue()
 
     await authService['sendTokenResetPassword']({ email: 'sample@gmail.com' })
     expect(authRepositoryPrismaMock.sendTokenResetPassword).toHaveBeenCalled()
@@ -286,8 +291,9 @@ describe('Auth Service (unit)', () => {
   })
 
   it('send token reset password -> should call repository.sendTokenResetPassword and custom handle error', async () => {
-    const sendTokenResetPassword = vi.spyOn(authRepositoryPrismaMock, 'sendTokenResetPassword')
-    sendTokenResetPassword.mockRejectedValue(new BadRequestException('bad bad'))
+    vi.mocked(authRepositoryPrismaMock.sendTokenResetPassword!).mockRejectedValue(
+      new BadRequestException('bad bad')
+    )
 
     try {
       await authService['sendTokenResetPassword']({ email: 'sample@gmail.com' })
@@ -301,9 +307,8 @@ describe('Auth Service (unit)', () => {
   })
 
   it('reset password -> should call repository.resetPassword and return a user', async () => {
-    const resetPasswordMock = vi.spyOn(authRepositoryPrismaMock, 'resetPassword')
     const returnUser = userFactory()
-    resetPasswordMock.mockResolvedValue(returnUser)
+    vi.mocked(authRepositoryPrismaMock.resetPassword!).mockResolvedValue(returnUser)
 
     const result = await authService['resetPassword']({})
     expect(authRepositoryPrismaMock.resetPassword).toHaveBeenCalled()
@@ -313,8 +318,9 @@ describe('Auth Service (unit)', () => {
   })
 
   it('reset password -> should call repository.resetPassword and custom handle error', async () => {
-    const resetPasswordMock = vi.spyOn(authRepositoryPrismaMock, 'resetPassword')
-    resetPasswordMock.mockRejectedValue(new BadRequestException('bad bad'))
+    vi.mocked(authRepositoryPrismaMock.resetPassword!).mockRejectedValue(
+      new BadRequestException('bad bad')
+    )
 
     try {
       await authService['resetPassword']({})

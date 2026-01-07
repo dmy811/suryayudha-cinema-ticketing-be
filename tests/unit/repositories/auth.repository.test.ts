@@ -2,7 +2,9 @@ import '../../__mocks__/mockRedis'
 import { beforeEach, describe, it, vi, expect } from 'vitest'
 
 vi.mock('../../../src/shared/helpers/checkExistingRow')
-vi.mock('../../../src/infrastructure/config/imagekit.config')
+vi.mock('../../../src/infrastructure/config/imagekit.config', () => ({
+  uploadImageToImageKit: vi.fn()
+}))
 vi.mock('../../../src/infrastructure/config/nodemailer')
 vi.mock('../../../src/shared/helpers/generateVerificationToken')
 vi.mock('../../../src/shared/helpers/passwordEncrypt')
@@ -20,9 +22,11 @@ import { logger } from '../../../src/shared/logger/logger'
 import { setCache } from '../../../src/infrastructure/cache/setCache'
 import redis from '../../../src/infrastructure/config/redis'
 import { AuthRepositoryPrisma } from '../../../src/infrastructure/repositories/AuthRepositoryPrisma'
+import { createPrismaMock } from '../../__mocks__/mockPrisma'
 
 describe('AuthRepository (unit)', () => {
   let authRepositoryPrisma: AuthRepositoryPrisma
+  let prismaMock: ReturnType<typeof createPrismaMock>
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -38,5 +42,9 @@ describe('AuthRepository (unit)', () => {
     vi.mocked(logger.error).mockReturnValue(logger)
     vi.mocked(logger.warn).mockReturnValue(logger)
     vi.mocked(setCache).mockResolvedValue(undefined)
+    prismaMock = createPrismaMock()
+    authRepositoryPrisma = new AuthRepositoryPrisma(prismaMock)
   })
+
+  it('register -> should register user successfully', async () => {})
 })
