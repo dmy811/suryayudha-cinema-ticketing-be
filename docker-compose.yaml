@@ -1,11 +1,11 @@
 services:
-  postgres:
+  surya-postgresql:
     image: postgres:15
-    container_name: surya-postgres
+    container_name: surya-postgresql
     env_file:
       - .env.production
     volumes:
-      - postgresql-data-surya:/var/lib/postgresql/data
+      - surya-postgresql-data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER}']
@@ -15,7 +15,7 @@ services:
     networks:
       - surya-network
 
-  redis:
+  surya-redis:
     image: redis:8.2
     container_name: surya-redis
     command: >
@@ -23,7 +23,7 @@ services:
     env_file:
       - .env.production
     volumes:
-      - redis-data-surya:/data
+      - surya-redis-data:/data
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'redis-cli', '-a', '$${REDIS_PASSWORD}', 'ping']
@@ -32,13 +32,11 @@ services:
       retries: 5
     networks:
       - surya-network
-  backend:
+  surya-backend:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        DATABASE_URL: ${DATABASE_URL}
-    image: surya-backend-image
+    image: surya-backend
     container_name: surya-backend
     env_file:
       - .env.production
@@ -47,9 +45,9 @@ services:
     ports:
       - '3000:3000'
     depends_on:
-      postgres:
+      surya-postgresql:
         condition: service_healthy
-      redis:
+      surya-redis:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -63,10 +61,10 @@ services:
       - surya-network
 
 volumes:
-  postgresql-data-surya:
-    name: postgresql-data-surya
-  redis-data-surya:
-    name: redis-data-surya
+  surya-postgresql-data:
+    name: surya-postgresql-data
+  surya-redis-data:
+    name: surya-redis-data
 
 networks:
   surya-network:
