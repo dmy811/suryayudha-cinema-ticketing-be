@@ -270,11 +270,40 @@ describe('AuthController (unit)', () => {
     await authController['googleOauthCallback'](req as any, res as any, next)
 
     expect(signJwt).toHaveBeenCalled()
+    expect(signJwt).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: expect.any(Number),
+        name: expect.any(String),
+        email: expect.any(String),
+        role: expect.any(String)
+      }),
+      'ACCESS_TOKEN_PRIVATE_KEY',
+      { expiresIn: '15m' }
+    )
+
+    expect(signJwt).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: expect.any(Number),
+        jti: expect.any(String),
+        name: expect.any(String),
+        email: expect.any(String),
+        role: expect.any(String)
+      }),
+      'REFRESH_TOKEN_PRIVATE_KEY',
+      { expiresIn: '7d' }
+    )
     expect(setAccessToken).toHaveBeenCalled()
     expect(setAccessToken).toHaveBeenCalledWith('token', res)
     expect(setRefreshToken).toHaveBeenCalled()
     expect(setRefreshToken).toHaveBeenCalledWith('token', res)
     expect(setCache).toHaveBeenCalled()
+    expect(setCache).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(Number)
+    )
     expect(res.redirect).toHaveBeenCalled()
   })
 
@@ -303,11 +332,40 @@ describe('AuthController (unit)', () => {
     await authController['facebookOauthCallback'](req as any, res as any, next)
 
     expect(signJwt).toHaveBeenCalled()
+    expect(signJwt).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: expect.any(Number),
+        name: expect.any(String),
+        email: expect.any(String),
+        role: expect.any(String)
+      }),
+      'ACCESS_TOKEN_PRIVATE_KEY',
+      { expiresIn: '15m' }
+    )
+
+    expect(signJwt).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: expect.any(Number),
+        jti: expect.any(String),
+        name: expect.any(String),
+        email: expect.any(String),
+        role: expect.any(String)
+      }),
+      'REFRESH_TOKEN_PRIVATE_KEY',
+      { expiresIn: '7d' }
+    )
     expect(setAccessToken).toHaveBeenCalled()
     expect(setAccessToken).toHaveBeenCalledWith('token', res)
     expect(setRefreshToken).toHaveBeenCalled()
     expect(setRefreshToken).toHaveBeenCalledWith('token', res)
     expect(setCache).toHaveBeenCalled()
+    expect(setCache).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(Number)
+    )
     expect(res.redirect).toHaveBeenCalled()
   })
 
@@ -370,7 +428,9 @@ describe('AuthController (unit)', () => {
     await authController['logout'](req as any, res as any, next)
 
     expect(redis.del).toHaveBeenCalled()
+    expect(redis.del).toHaveBeenCalledTimes(1)
     expect(clearAuthCookies).toHaveBeenCalled()
+    expect(clearAuthCookies).toHaveBeenCalledWith(res)
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

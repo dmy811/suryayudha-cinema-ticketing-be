@@ -19,6 +19,7 @@ import { BadRequestException } from '../../../src/shared/error-handling/exceptio
 import { NotFoundException } from '../../../src/shared/error-handling/exceptions/not-found.exception'
 import { UnauthorizedException } from '../../../src/shared/error-handling/exceptions/unauthorized.exception'
 import { userFactory } from '../../factories/user'
+import { ZodError } from 'zod'
 
 describe('Auth Service (unit)', () => {
   let authService: AuthService
@@ -60,6 +61,39 @@ describe('Auth Service (unit)', () => {
     expect(authRepositoryPrismaMock.register).toHaveBeenCalledWith({} as any)
     expect(ZodValidation.validate).toHaveBeenCalled()
     expect(user).toEqual(returnUser)
+  })
+
+  it('register -> should call repository.register and custom handle error', async () => {
+    vi.mocked(authRepositoryPrismaMock.register!).mockRejectedValue(
+      new BadRequestException('user already exists')
+    )
+
+    try {
+      await authService['register']({} as any)
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpException)
+    }
+
+    expect(authRepositoryPrismaMock.register).toHaveBeenCalled()
+    expect(authRepositoryPrismaMock.register).toHaveBeenCalledWith({} as any)
+    expect(ZodValidation.validate).toHaveBeenCalled()
+  })
+
+  it('register -> should throw and validation zod error', async () => {
+    vi.mocked(ZodValidation.validate).mockImplementation(() => {
+      throw new ZodError([])
+    })
+
+    try {
+      await authService['register']({} as any)
+    } catch (error) {
+      console.error(error)
+      expect(error).toBeInstanceOf(HttpException)
+    }
+
+    expect(authRepositoryPrismaMock.register).not.toHaveBeenCalled()
+    expect(authRepositoryPrismaMock.register).not.toHaveBeenCalledWith({} as any)
+    expect(ZodValidation.validate).toHaveBeenCalled()
   })
 
   it('resendVerificationLink -> should call repository.resendVerificationLink', async () => {
