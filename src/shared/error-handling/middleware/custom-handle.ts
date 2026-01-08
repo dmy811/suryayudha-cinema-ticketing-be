@@ -42,5 +42,5 @@ export function CustomHandleError(error: any, options: HandleErrorOptions = {}):
     return new BadRequestException(`${context}: ${messages}`)
   }
 
-  return new HttpException(error.statusCode, error.message, error.errorCode)
+  return new HttpException(error.statusCode, `${context}: ${error.message}`, error.errorCode)
 }

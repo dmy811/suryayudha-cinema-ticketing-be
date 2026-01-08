@@ -30,6 +30,7 @@ describe('Auth Service (unit)', () => {
 
     vi.mocked(CustomHandleError).mockReturnValue(new HttpException(500, 'error'))
     vi.mocked(ZodValidation.validate).mockReturnValue({} as any)
+
     vi.mocked(logger.info).mockReturnValue(logger)
     vi.mocked(logger.error).mockReturnValue(logger)
     vi.mocked(logger.warn).mockReturnValue(logger)
@@ -87,7 +88,6 @@ describe('Auth Service (unit)', () => {
     try {
       await authService['register']({} as any)
     } catch (error) {
-      console.error(error)
       expect(error).toBeInstanceOf(HttpException)
     }
 

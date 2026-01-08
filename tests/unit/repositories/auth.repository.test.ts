@@ -26,7 +26,7 @@ import { createPrismaMock } from '../../__mocks__/mockPrisma'
 import { BadRequestException } from '../../../src/shared/error-handling/exceptions/bad-request.exception'
 import { NotFoundException } from '../../../src/shared/error-handling/exceptions/not-found.exception'
 import { UnauthorizedException } from '../../../src/shared/error-handling/exceptions/unauthorized.exception'
-import { number, string } from 'zod'
+import crypto from 'crypto'
 
 describe('AuthRepository (unit)', () => {
   let authRepositoryPrisma: AuthRepositoryPrisma
@@ -40,6 +40,7 @@ describe('AuthRepository (unit)', () => {
     vi.mocked(generateVerificationToken).mockReturnValue('verif-token')
     vi.mocked(hashPassword).mockResolvedValue('hash-password')
     vi.mocked(verifyPassword).mockResolvedValue(true)
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('mock-mock-mock-mock-mock')
     vi.mocked(signJwt).mockReturnValue('jwt-token')
     vi.mocked(verifyJwtToken).mockReturnValue({})
     vi.mocked(logger.info).mockReturnValue(logger)
@@ -54,21 +55,21 @@ describe('AuthRepository (unit)', () => {
     vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
 
     vi.mocked(prismaMock.user.create).mockResolvedValue({
-      id: expect.any(Number),
+      id: 1,
       name: 'Test User',
       role: 'user',
       email: 'test@mail.com',
-      password: expect.any(String),
+      password: 'hashed',
       is_verified: false,
-      verification_token: expect.any(String),
-      verification_token_expires_at: expect.any(Date),
-      reset_password_token: expect.any(String),
-      reset_password_token_expires_at: expect.any(Date),
-      profile_url: expect.any(String),
-      provider: expect.any(String),
-      providerId: expect.any(String),
-      created_at: expect.any(Date),
-      updated_at: expect.any(Date)
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
     } as any)
 
     const result = await authRepositoryPrisma.register({
@@ -87,19 +88,19 @@ describe('AuthRepository (unit)', () => {
     })
     expect(result).toEqual(
       expect.objectContaining({
-        id: expect.any(Number),
+        id: 1,
         name: 'Test User',
         role: 'user',
         email: 'test@mail.com',
-        password: expect.any(String),
+        password: 'hashed',
         is_verified: false,
-        verification_token: expect.any(String),
+        verification_token: 'token',
         verification_token_expires_at: expect.any(Date),
-        reset_password_token: expect.any(String),
-        reset_password_token_expires_at: expect.any(Date),
-        profile_url: expect.any(String),
-        provider: expect.any(String),
-        providerId: expect.any(String),
+        reset_password_token: null,
+        reset_password_token_expires_at: null,
+        profile_url: null,
+        provider: 'local',
+        providerId: null,
         created_at: expect.any(Date),
         updated_at: expect.any(Date)
       })
@@ -151,6 +152,8 @@ describe('AuthRepository (unit)', () => {
     ).rejects.toBeInstanceOf(NotFoundException)
     expect(prismaMock.user.findUnique).toHaveBeenCalled()
     expect(prismaMock.user.update).not.toHaveBeenCalled()
+    expect(generateVerificationToken).not.toHaveBeenCalled()
+    expect(sendEmail).not.toHaveBeenCalled()
   })
 
   it('verify email -> should verify email successfully', async () => {
