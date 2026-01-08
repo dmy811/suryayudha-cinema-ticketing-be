@@ -25,6 +25,7 @@ import { AuthRepositoryPrisma } from '../../../src/infrastructure/repositories/A
 import { createPrismaMock } from '../../__mocks__/mockPrisma'
 import { BadRequestException } from '../../../src/shared/error-handling/exceptions/bad-request.exception'
 import { NotFoundException } from '../../../src/shared/error-handling/exceptions/not-found.exception'
+import { UnauthorizedException } from '../../../src/shared/error-handling/exceptions/unauthorized.exception'
 import { number, string } from 'zod'
 
 describe('AuthRepository (unit)', () => {
@@ -529,5 +530,201 @@ describe('AuthRepository (unit)', () => {
         newRefreshToken: expect.any(String)
       })
     )
+  })
+
+  it('refresh token -> should throw error if refresh token doesnt exists in redis', async () => {
+    vi.mocked(redis.get).mockResolvedValue(null)
+    await expect(authRepositoryPrisma.refreshToken('refresh token')).rejects.toThrow(
+      UnauthorizedException
+    )
+
+    expect(signJwt).not.toHaveBeenCalled()
+    expect(redis.del).not.toHaveBeenCalled()
+    expect(setCache).not.toHaveBeenCalled()
+  })
+
+  it('get profile -> should successfully get profile', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({} as any)
+    await authRepositoryPrisma.getProfile(1)
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('get profile -> should throw error if user not found', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+    await expect(authRepositoryPrisma.getProfile(1)).rejects.toThrow(NotFoundException)
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('update profile -> should successfully update profile', async () => {
+    vi.mocked(prismaMock.user.update).mockResolvedValue({} as any)
+
+    await authRepositoryPrisma.updateProfile(1, { name: 'change' })
+
+    expect(checkExists).toHaveBeenCalled()
+    expect(prismaMock.user.update).toHaveBeenCalled()
+  })
+
+  it('update profile -> should throw error if user not found', async () => {
+    vi.mocked(checkExists).mockRejectedValue(new NotFoundException('not found'))
+    await expect(authRepositoryPrisma.updateProfile(1, { name: 'change' })).rejects.toThrow(
+      NotFoundException
+    )
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
+  it('change password -> should successfully change a password', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({ password: 'password hashed' } as any)
+    vi.mocked(prismaMock.user.update).mockResolvedValue({} as any)
+
+    await authRepositoryPrisma.changePassword('sample@gmail.com', {
+      oldPassword: 'old password',
+      newPassword: 'new password',
+      newPasswordConfirmation: 'new password confirmation'
+    })
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(verifyPassword).toHaveBeenCalledWith('password hashed', 'old password')
+    expect(hashPassword).toHaveBeenCalledWith('new password')
+    expect(prismaMock.user.update).toHaveBeenCalled()
+  })
+
+  it('change password -> should throw error if user not found', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+
+    await expect(
+      authRepositoryPrisma.changePassword('sample@gmail.com', {
+        oldPassword: 'old password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password confirmation'
+      })
+    ).rejects.toThrow(NotFoundException)
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(verifyPassword).not.toHaveBeenCalled()
+    expect(hashPassword).not.toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
+  it('change password -> should throw error if old password doesnt match', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({ password: 'password hash' } as any)
+    vi.mocked(verifyPassword).mockResolvedValue(false)
+
+    await expect(
+      authRepositoryPrisma.changePassword('sample@gmail.com', {
+        oldPassword: 'old password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password confirmation'
+      })
+    ).rejects.toThrow(BadRequestException)
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(verifyPassword).toHaveBeenCalledWith('password hash', 'old password')
+    expect(hashPassword).not.toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
+  it('send token reset password -> should successfully send token reset password', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({} as any)
+    vi.mocked(prismaMock.user.update).mockResolvedValue({} as any)
+
+    await authRepositoryPrisma.sendTokenResetPassword({ email: 'test@gmail.com' })
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(generateVerificationToken).toHaveBeenCalled()
+    expect(sendEmail).toHaveBeenCalledWith({
+      email: 'test@gmail.com',
+      subject: 'Reset Password Token untuk reset password Anda',
+      html: expect.any(String)
+    })
+    expect(prismaMock.user.update).toHaveBeenCalled()
+  })
+
+  it('send token reset password -> should throw error if user not found', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+
+    await expect(
+      authRepositoryPrisma.sendTokenResetPassword({ email: 'test@gmail.com' })
+    ).rejects.toThrow(NotFoundException)
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+    expect(generateVerificationToken).not.toHaveBeenCalled()
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('reset password -> should successfully reseting password', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      reset_password_token: 'rpt',
+      reset_password_token_expires_at: new Date(Date.now() + 60 * 60 * 1000)
+    } as any)
+    vi.mocked(prismaMock.user.update).mockResolvedValue({} as any)
+
+    await authRepositoryPrisma.resetPassword({
+      email: 'test@gmail.com',
+      passwordResetCode: 'rpt',
+      newPassword: 'new password',
+      newPasswordConfirmation: 'new password'
+    })
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(prismaMock.user.update).toHaveBeenCalled()
+    expect(hashPassword).toHaveBeenCalledWith('new password')
+  })
+
+  it('reset password -> should throw error if user not found', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+
+    await expect(
+      authRepositoryPrisma.resetPassword({
+        email: 'test@gmail.com',
+        passwordResetCode: 'rpt',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+    ).rejects.toThrow(NotFoundException)
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+    expect(hashPassword).not.toHaveBeenCalled()
+  })
+
+  it('reset password -> should throw error if reset password token is wrong', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      reset_password_token: 'rpttttt',
+      reset_password_token_expires_at: new Date(Date.now() + 60 * 60 * 1000)
+    } as any)
+
+    await expect(
+      authRepositoryPrisma.resetPassword({
+        email: 'test@gmail.com',
+        passwordResetCode: 'rpt',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+    ).rejects.toThrow(BadRequestException)
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+    expect(hashPassword).not.toHaveBeenCalled()
+  })
+
+  it('reset password -> should throw error if reset password is expired', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      reset_password_token: 'rpt',
+      reset_password_token_expires_at: new Date(Date.now() - 60 * 60 * 1000)
+    } as any)
+
+    await expect(
+      authRepositoryPrisma.resetPassword({
+        email: 'test@gmail.com',
+        passwordResetCode: 'rpt',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+    ).rejects.toThrow(BadRequestException)
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+    expect(hashPassword).not.toHaveBeenCalled()
   })
 })
