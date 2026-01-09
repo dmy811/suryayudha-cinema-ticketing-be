@@ -8,7 +8,8 @@ export default defineConfig({
       '@tests': path.resolve(__dirname, './tests'),
       '@shared': path.resolve(__dirname, './src/shared'),
       '@infrastructure': path.resolve(__dirname, './src/infrastructure'),
-      '@src': path.resolve(__dirname, './src')
+      '@src': path.resolve(__dirname, './src'),
+      '@applications': path.resolve(__dirname, './src/applications')
     }
   },
   test: {
@@ -17,7 +18,8 @@ export default defineConfig({
     isolate: true,
     include: ['./tests/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/*.config.*'],
-    setupFiles: ['./tests/global-setup.ts'],
+    // setupFiles: ['./tests/global-setup.ts'],
+    globalSetup: './tests/global-setup.ts',
     testTimeout: 20000, // timout 20 detik untuk setiap test
     hookTimeout: 20000, // timeout 20 detik untuk setiap hook kayak beforeAll, beforeEach, afterAll dan lain lain
     clearMocks: true,

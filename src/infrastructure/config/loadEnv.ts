@@ -1,5 +1,4 @@
 import dotenv from 'dotenv'
-import * as fs from 'fs'
 
 import { logger } from '@shared/logger/logger'
 
