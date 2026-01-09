@@ -115,7 +115,7 @@ export class AuthService {
       await this.repository.sendTokenResetPassword(forgotPasswordPayload)
     } catch (e) {
       throw CustomHandleError(e, {
-        context: 'Error saat login'
+        context: 'Error saat kirim forgot password token'
       })
     }
   }

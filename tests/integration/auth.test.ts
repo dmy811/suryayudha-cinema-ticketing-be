@@ -1,5 +1,6 @@
 import '../__mocks__/mockRedis'
 import { describe, expect, it, beforeEach, vi } from 'vitest'
+import cookieParser from 'cookie-parser'
 
 vi.mock('../../src/shared/helpers/generateVerificationToken')
 vi.mock('../../src/shared/helpers/setCookies')
@@ -9,9 +10,29 @@ vi.mock('../../src/shared/helpers/clearCookies')
 vi.mock('../../src/infrastructure/config/imagekit.config', () => ({
   uploadImageToImageKit: vi.fn()
 }))
+vi.mock('../../src/shared/helpers/checkExistingRow', () => ({
+  checkExists: vi.fn()
+}))
+
 vi.mock('../../src/infrastructure/config/nodemailer')
 vi.mock('../../src/shared/helpers/passwordEncrypt')
 vi.mock('../../src/infrastructure/cache/setCache')
+vi.mock('passport', () => {
+  return {
+    default: {
+      initialize: () => (req: any, res: any, next: any) => next(),
+      authenticate: () => (req: any, res: any, next: any) => {
+        req.user = {
+          id: 1,
+          name: 'Test User',
+          email: 'test@gmail.com',
+          role: 'user'
+        }
+        next()
+      }
+    }
+  }
+})
 
 import supertest from 'supertest'
 import express, { Request, Response, NextFunction } from 'express'
@@ -33,6 +54,7 @@ import { sendEmail } from '../../src/infrastructure/config/nodemailer'
 import { BadRequestException } from '../../src/shared/error-handling/exceptions/bad-request.exception'
 import { HttpException } from '../../src/shared/error-handling/exceptions/http.exception'
 import { ZodError } from 'zod'
+import { NotFoundException } from '../../src/shared/error-handling/exceptions/not-found.exception'
 
 describe('Auth Controller Routes', () => {
   let app: express.Application
@@ -49,9 +71,9 @@ describe('Auth Controller Routes', () => {
     vi.mocked(signJwt).mockReturnValue('token')
     vi.mocked(verifyJwtToken).mockReturnValue({
       id: 1,
-      name: 'example',
-      email: 'example@gmail.com',
+      name: 'Test User',
       role: 'user',
+      email: 'test@mail.com',
       iat: '31312',
       exp: '2312312',
       jti: 'alskjdhasdjsakaj'
@@ -72,6 +94,7 @@ describe('Auth Controller Routes', () => {
     authRepositoryPrisma = new AuthRepositoryPrisma(prismaMock)
     authService = new AuthService(authRepositoryPrisma)
     authController = new AuthController(authService)
+    app.use(cookieParser())
     app.use('/api/v1/auth', authController.getRoutes())
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       if (err instanceof HttpException) {
@@ -121,7 +144,7 @@ describe('Auth Controller Routes', () => {
       passwordConfirmation: '00000000'
     }
 
-    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody)
+    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody).expect(201)
     expect(res.statusCode).toBe(201)
     expect(res.body.success).toBe(true)
     expect(res.body.message).toBe(
@@ -164,7 +187,7 @@ describe('Auth Controller Routes', () => {
       passwordConfirmation: '00000000'
     }
 
-    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody)
+    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody).expect(400)
     expect(res.statusCode).toBe(400)
     expect(res.body.success).toBe(false)
     expect(res.body.statusCode).toBe(400)
@@ -187,7 +210,7 @@ describe('Auth Controller Routes', () => {
       passwordConfirmation: '00000000'
     }
 
-    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody)
+    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody).expect(400)
     expect(res.statusCode).toBe(400)
     expect(res.body.success).toBe(false)
     expect(res.body.statusCode).toBe(400)
@@ -206,7 +229,7 @@ describe('Auth Controller Routes', () => {
       passwordConfirmation: '000'
     }
 
-    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody)
+    const res = await supertest(app).post('/api/v1/auth/register').send(requestBody).expect(400)
     expect(res.statusCode).toBe(400)
     expect(res.body.success).toBe(false)
     expect(res.body.statusCode).toBe(400)
@@ -239,6 +262,7 @@ describe('Auth Controller Routes', () => {
     const res = await supertest(app)
       .post('/api/v1/auth/resend-verification-token')
       .send({ email: 'sample@gmail.com' })
+      .expect(200)
 
     expect(res.statusCode).toBe(200)
     expect(res.body.success).toBe(true)
@@ -259,6 +283,7 @@ describe('Auth Controller Routes', () => {
     const res = await supertest(app)
       .post('/api/v1/auth/resend-verification-token')
       .send({ email: 'sample@gmail.com' })
+      .expect(404)
 
     expect(res.statusCode).toBe(404)
     expect(res.body.success).toBe(false)
@@ -305,9 +330,9 @@ describe('Auth Controller Routes', () => {
   it('GET /verify-email -> failed because user email not founded', async () => {
     vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
 
-    const res = await supertest(app).get(
-      '/api/v1/auth/verify-email?token=978241&email=sample@gmail.com'
-    )
+    const res = await supertest(app)
+      .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
+      .expect(404)
 
     expect(res.statusCode).toBe(404)
     expect(res.body.success).toBe(false)
@@ -338,9 +363,9 @@ describe('Auth Controller Routes', () => {
       updated_at: new Date()
     } as any)
 
-    const res = await supertest(app).get(
-      '/api/v1/auth/verify-email?token=978241&email=sample@gmail.com'
-    )
+    const res = await supertest(app)
+      .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
+      .expect(400)
 
     expect(res.statusCode).toBe(400)
     expect(res.body.success).toBe(false)
@@ -369,9 +394,9 @@ describe('Auth Controller Routes', () => {
       updated_at: new Date()
     } as any)
 
-    const res = await supertest(app).get(
-      '/api/v1/auth/verify-email?token=978241&email=sample@gmail.com'
-    )
+    const res = await supertest(app)
+      .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
+      .expect(400)
 
     expect(res.statusCode).toBe(400)
     expect(res.body.success).toBe(false)
@@ -400,9 +425,9 @@ describe('Auth Controller Routes', () => {
       updated_at: new Date()
     } as any)
 
-    const res = await supertest(app).get(
-      '/api/v1/auth/verify-email?token=978241&email=sample@gmail.com'
-    )
+    const res = await supertest(app)
+      .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
+      .expect(400)
 
     expect(res.statusCode).toBe(400)
     expect(res.body.success).toBe(false)
@@ -413,4 +438,948 @@ describe('Auth Controller Routes', () => {
   })
 
   // login
+  it('POST /login -> successfully login', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'dims',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login').send(requestBody).expect(200)
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Login berhasil')
+
+    expect(setAccessToken).toHaveBeenCalled()
+    expect(setRefreshToken).toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(verifyPassword).toHaveBeenCalledWith('hashed', '00000000')
+    expect(signJwt).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: 1,
+        name: 'dims',
+        email: 'sample@gmail.com',
+        role: 'user'
+      }),
+      'ACCESS_TOKEN_PRIVATE_KEY',
+      { expiresIn: '15m' }
+    )
+
+    expect(signJwt).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        jti: expect.any(String),
+        id: 1,
+        name: 'dims',
+        email: 'sample@gmail.com',
+        role: 'user'
+      }),
+      'REFRESH_TOKEN_PRIVATE_KEY',
+      { expiresIn: '7d' }
+    )
+    expect(setCache).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(Number)
+    )
+  })
+
+  it('POST /login -> failed to login because required fields not provided', async () => {
+    const requestBody = {
+      email: 'sample@gmail.com'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login').send(requestBody).expect(400)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat login: Password harus diisi')
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+  })
+
+  it('POST /login -> failed to login because email not exists in database', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login').send(requestBody).expect(404)
+    expect(res.statusCode).toBe(404)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat login: User dengan email sample@gmail.com tidak ditemukan'
+    )
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /login -> failed to login if user role is admin, because this route only for user', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'dims',
+      role: 'admin',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login').send(requestBody).expect(400)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat login: Login ini hanya untuk user')
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /login -> failed to login because password doenst match', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'dims',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    vi.mocked(verifyPassword).mockResolvedValue(false)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login').send(requestBody).expect(400)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat login: Password salah')
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(verifyPassword).toHaveBeenCalledWith('hashed', '00000000')
+  })
+
+  it('POST /refresh -> successfully refresh and rotate token', async () => {
+    vi.mocked(redis.get).mockResolvedValue({} as any)
+    const mockRefreshToken = 'khl433k4j23lkj'
+    const res = await supertest(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refreshToken=${mockRefreshToken}`])
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Refresh token berhasil')
+
+    expect(setAccessToken).toHaveBeenCalled()
+    expect(setRefreshToken).toHaveBeenCalled()
+    expect(verifyJwtToken).toHaveBeenCalledWith('khl433k4j23lkj', 'REFRESH_TOKEN_PUBLIC_KEY')
+    expect(redis.get).toHaveBeenCalledWith(expect.stringContaining('refresh-token'))
+    expect(redis.del).toHaveBeenCalledTimes(1)
+    expect(signJwt).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: expect.any(Number),
+        name: expect.any(String),
+        email: expect.any(String),
+        role: expect.any(String)
+      }),
+      'ACCESS_TOKEN_PRIVATE_KEY',
+      { expiresIn: '15m' }
+    )
+
+    expect(signJwt).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: expect.any(Number),
+        jti: expect.any(String),
+        name: expect.any(String),
+        email: expect.any(String),
+        role: expect.any(String)
+      }),
+      'REFRESH_TOKEN_PRIVATE_KEY',
+      { expiresIn: '7d' }
+    )
+    expect(setCache).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(Number)
+    )
+  })
+
+  it('POST /refresh -> should throw error if refresh token doesnt exists in redis', async () => {
+    vi.mocked(redis.get).mockResolvedValue(null)
+    const mockRefreshToken = 'khl433k4j23lkj'
+    const res = await supertest(app)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', [`refreshToken=${mockRefreshToken}`])
+      .expect(401)
+
+    expect(res.statusCode).toBe(401)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat refresh token: Refresh token di verifikasi oleh redis, akses ditolak karena refresh token tidak ada atau tidak valid'
+    )
+
+    expect(signJwt).not.toHaveBeenCalled()
+    expect(redis.del).not.toHaveBeenCalled()
+    expect(setCache).not.toHaveBeenCalled()
+  })
+
+  it('POST /refresh -> should throw error if refresh token doesnt exists in cookies', async () => {
+    const res = await supertest(app).post('/api/v1/auth/refresh').expect(401)
+
+    expect(res.statusCode).toBe(401)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat refresh token: Refresh token tidak ditemukan di cookies'
+    )
+  })
+
+  it('POST /google/callback -> successfully handle google callback', async () => {
+    process.env.CLIENT_URL = 'http://localhost:3000'
+    const res = await supertest(app).get('/api/v1/auth/google/callback')
+
+    expect(res.statusCode).toBe(302)
+    expect(res.headers.location).toBe('http://localhost:3000')
+
+    expect(signJwt).toHaveBeenCalledTimes(2)
+    expect(setCache).toHaveBeenCalled()
+    expect(setAccessToken).toHaveBeenCalled()
+    expect(setRefreshToken).toHaveBeenCalled()
+  })
+
+  it('POST /facebook/callback -> successfully handle facebook callback', async () => {
+    process.env.CLIENT_URL = 'http://localhost:3000'
+    const res = await supertest(app).get('/api/v1/auth/facebook/callback')
+
+    expect(res.statusCode).toBe(302)
+    expect(res.headers.location).toBe('http://localhost:3000')
+
+    expect(signJwt).toHaveBeenCalledTimes(2)
+    expect(setCache).toHaveBeenCalled()
+    expect(setAccessToken).toHaveBeenCalled()
+    expect(setRefreshToken).toHaveBeenCalled()
+  })
+
+  it('POST /login -> successfully login admin', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'dims',
+      role: 'admin',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login-admin').send(requestBody).expect(200)
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Login admin berhasil')
+
+    expect(setAccessToken).toHaveBeenCalled()
+    expect(setRefreshToken).toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(verifyPassword).toHaveBeenCalledWith('hashed', '00000000')
+    expect(signJwt).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: 1,
+        name: 'dims',
+        email: 'sample@gmail.com',
+        role: 'admin'
+      }),
+      'ACCESS_TOKEN_PRIVATE_KEY',
+      { expiresIn: '15m' }
+    )
+
+    expect(signJwt).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        jti: expect.any(String),
+        id: 1,
+        name: 'dims',
+        email: 'sample@gmail.com',
+        role: 'admin'
+      }),
+      'REFRESH_TOKEN_PRIVATE_KEY',
+      { expiresIn: '7d' }
+    )
+    expect(setCache).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(Number)
+    )
+  })
+
+  it('POST /login-admin -> failed to login because required fields not provided', async () => {
+    const requestBody = {
+      email: 'sample@gmail.com'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login-admin').send(requestBody).expect(400)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat login: Password harus diisi')
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+  })
+
+  it('POST /login-admin -> failed to login because email not exists in database', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login-admin').send(requestBody).expect(404)
+    expect(res.statusCode).toBe(404)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat login: User dengan email sample@gmail.com tidak ditemukan'
+    )
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /login-admin -> failed to login if user role is user, because this route only for admin', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'dims',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login-admin ').send(requestBody).expect(400)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat login: Login ini hanya untuk admin')
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /login-admin -> failed to login because password doenst match', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'dims',
+      role: 'admin',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    vi.mocked(verifyPassword).mockResolvedValue(false)
+    const requestBody = {
+      email: 'sample@gmail.com',
+      password: '00000000'
+    }
+
+    const res = await supertest(app).post('/api/v1/auth/login-admin ').send(requestBody).expect(400)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat login: Password salah')
+
+    expect(setAccessToken).not.toHaveBeenCalled()
+    expect(setRefreshToken).not.toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(verifyPassword).toHaveBeenCalledWith('hashed', '00000000')
+  })
+
+  it('POST /logout -> successfully logout', async () => {
+    const mockRefreshToken = 'kjhasldkjq3'
+    const res = await supertest(app)
+      .post('/api/v1/auth/logout')
+      .set('Cookie', [`refreshToken=${mockRefreshToken}`])
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Logout berhasil')
+
+    expect(clearAuthCookies).toHaveBeenCalled()
+    expect(verifyJwtToken).toHaveBeenCalled()
+    expect(redis.del).toHaveBeenCalled()
+  })
+
+  it('GET /profile -> successfully get profile', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'test@mail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const res = await supertest(app)
+      .get('/api/v1/auth/profile')
+      .set('Cookie', ['accessToken=fake-access-token'])
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Profile berhasil diambil')
+
+    expect(res.body.data).toEqual(
+      expect.objectContaining({
+        id: 1,
+        name: 'Test User',
+        role: 'user',
+        email: 'test@mail.com',
+        is_verified: false,
+        profile_url: null,
+        provider: 'local',
+        providerId: null,
+        created_at: expect.any(String),
+        updated_at: expect.any(String)
+      })
+    )
+
+    expect(verifyJwtToken).toHaveBeenCalledWith('fake-access-token', 'ACCESS_TOKEN_PUBLIC_KEY')
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('GET /profile -> failed because user not authorized', async () => {
+    const res = await supertest(app).get('/api/v1/auth/profile').expect(401)
+
+    expect(res.statusCode).toBe(401)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Akses ditolak, silahkan login terlebih dahulu')
+  })
+
+  it('GET /profile -> failed because user not exists in database', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+    const res = await supertest(app)
+      .get('/api/v1/auth/profile')
+      .set('Cookie', ['accessToken=fake-access-token'])
+      .expect(404)
+
+    expect(res.statusCode).toBe(404)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat mengambil data profile: User dengan id 1 tidak ditemukan'
+    )
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('PATCH /update-profile -> successfully update the profile', async () => {
+    vi.mocked(checkExists).mockResolvedValue(undefined)
+
+    vi.mocked(prismaMock.user.update).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'test@mail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+
+    const res = await supertest(app)
+      .patch('/api/v1/auth/update-profile')
+      .set('Cookie', ['accessToken=fake-token'])
+      .field('name', 'New Name')
+      .attach('profile_url', Buffer.from('fake image content'), {
+        filename: 'avatar.png',
+        contentType: 'image/png'
+      })
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Profile berhasil diupdate')
+
+    expect(checkExists).toHaveBeenCalled()
+    expect(uploadImageToImageKit).toHaveBeenCalled()
+    expect(prismaMock.user.update).toHaveBeenCalled()
+  })
+
+  it('PATCH /update-profile -> failed because user not exists in database', async () => {
+    vi.mocked(checkExists).mockRejectedValue(
+      new NotFoundException('User dengan id 1 tidak ditemukan')
+    )
+
+    const res = await supertest(app)
+      .patch('/api/v1/auth/update-profile')
+      .set('Cookie', ['accessToken=fake-token'])
+      .field('name', 'New Name')
+      .attach('profile_url', Buffer.from('fake image content'), {
+        filename: 'avatar.png',
+        contentType: 'image/png'
+      })
+      .expect(404)
+
+    expect(res.statusCode).toBe(404)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat update profile: User dengan id 1 tidak ditemukan')
+
+    expect(checkExists).toHaveBeenCalled()
+  })
+
+  it('PATCH /change-password -> successfully change the password', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'test@mail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    vi.mocked(prismaMock.user.update).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'test@mail.com',
+      password: 'new password',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+
+    const res = await supertest(app)
+      .patch('/api/v1/auth/change-password')
+      .set('Cookie', ['accessToken=fake-token'])
+      .send({
+        oldPassword: 'old password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Password berhasil diubah')
+
+    expect(verifyPassword).toHaveBeenCalledWith('hashed', 'old password')
+    expect(hashPassword).toHaveBeenCalledWith('new password')
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(prismaMock.user.update).toHaveBeenCalled()
+  })
+
+  it('PATCH /change-password -> failed because required field not provided', async () => {
+    const res = await supertest(app)
+      .patch('/api/v1/auth/change-password')
+      .set('Cookie', ['accessToken=fake-token'])
+      .send({
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(400)
+
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat ubah password: Password lama harus diisi')
+  })
+
+  it('PATCH /change-password -> failed because user not found in database', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+    const res = await supertest(app)
+      .patch('/api/v1/auth/change-password')
+      .set('Cookie', ['accessToken=fake-token'])
+      .send({
+        oldPassword: 'old password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(404)
+
+    expect(res.statusCode).toBe(404)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat ubah password: User dengan email test@mail.com tidak ditemukan'
+    )
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('PATCH /change-password -> failed because new password doesnt match with new password confirmation', async () => {
+    const res = await supertest(app)
+      .patch('/api/v1/auth/change-password')
+      .set('Cookie', ['accessToken=fake-token'])
+      .send({
+        oldPassword: 'old password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new passwordddddddddd'
+      })
+      .expect(400)
+
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat ubah password: Password baru dan konfirmasi password baru tidak cocok'
+    )
+  })
+
+  it('PATCH /change-password -> failed because old password doenst match', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'test@mail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    vi.mocked(verifyPassword).mockResolvedValue(false)
+
+    const res = await supertest(app)
+      .patch('/api/v1/auth/change-password')
+      .set('Cookie', ['accessToken=fake-token'])
+      .send({
+        oldPassword: 'old password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(400)
+
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat ubah password: Password lama salah')
+
+    expect(verifyPassword).toHaveBeenCalledWith('hashed', 'old password')
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /forgot-password -> successfully send forgot password token to email', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const res = await supertest(app)
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: 'sample@gmail.com' })
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Token reset password berhasil dikirim')
+
+    expect(generateVerificationToken).toHaveBeenCalled()
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(sendEmail).toHaveBeenCalledWith({
+      email: 'sample@gmail.com',
+      subject: 'Reset Password Token untuk reset password Anda',
+      html: expect.any(String)
+    })
+    expect(prismaMock.user.update).toHaveBeenCalled()
+  })
+  it('POST /forgot-password -> failed because email not exists in database', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+    const res = await supertest(app)
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: 'sample@gmail.com' })
+      .expect(404)
+
+    expect(res.statusCode).toBe(404)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat kirim forgot password token: User dengan email sample@gmail.com tidak ditemukan'
+    )
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /reset-password -> successfully reseting the password', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: 'reset-password',
+      reset_password_token_expires_at: new Date(Date.now() + 60 * 60 * 1000),
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    vi.mocked(prismaMock.user.update).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: null,
+      reset_password_token_expires_at: null,
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const res = await supertest(app)
+      .post('/api/v1/auth/reset-password')
+      .send({
+        email: 'sample@gmail.com',
+        passwordResetCode: 'reset-password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Password berhasil direset')
+
+    expect(hashPassword).toHaveBeenCalledWith('new password')
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+    expect(prismaMock.user.update).toHaveBeenCalled()
+  })
+
+  it('POST /reset-password -> failed because reset password token is wrong', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: 'wrong',
+      reset_password_token_expires_at: new Date(Date.now() + 60 * 60 * 1000),
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const res = await supertest(app)
+      .post('/api/v1/auth/reset-password')
+      .send({
+        email: 'sample@gmail.com',
+        passwordResetCode: 'reset-password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(400)
+
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Error saat reset password: Token reset password salah')
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /reset-password -> failed because user doenst not exists in database', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue(null)
+    const res = await supertest(app)
+      .post('/api/v1/auth/reset-password')
+      .send({
+        email: 'sample@gmail.com',
+        passwordResetCode: 'reset-password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(404)
+
+    expect(res.statusCode).toBe(404)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat reset password: User dengan email sample@gmail.com tidak ditemukan'
+    )
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('POST /reset-password -> failed because reset password token is expired', async () => {
+    vi.mocked(prismaMock.user.findUnique).mockResolvedValue({
+      id: 1,
+      name: 'Test User',
+      role: 'user',
+      email: 'sample@gmail.com',
+      password: 'hashed',
+      is_verified: false,
+      verification_token: 'token',
+      verification_token_expires_at: new Date(),
+      reset_password_token: 'reset-password',
+      reset_password_token_expires_at: new Date(Date.now() - 60 * 60 * 1000),
+      profile_url: null,
+      provider: 'local',
+      providerId: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as any)
+    const res = await supertest(app)
+      .post('/api/v1/auth/reset-password')
+      .send({
+        email: 'sample@gmail.com',
+        passwordResetCode: 'reset-password',
+        newPassword: 'new password',
+        newPasswordConfirmation: 'new password'
+      })
+      .expect(400)
+
+    expect(res.statusCode).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe(
+      'Error saat reset password: Token reset password sudah kadaluarsa'
+    )
+
+    expect(prismaMock.user.findUnique).toHaveBeenCalled()
+  })
+
+  it('GET /check-auth -> successfully check auth user status because user is authenticated', async () => {
+    const res = await supertest(app)
+      .get('/api/v1/auth/check-auth')
+      .set('Cookie', ['accessToken=mock-accesstoken'])
+      .expect(200)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.message).toBe('Autentikasi berhasil')
+  })
+
+  it('GET /check-auth -> failed check auth user status because user is not authenticated', async () => {
+    const res = await supertest(app).get('/api/v1/auth/check-auth').expect(401)
+
+    expect(res.statusCode).toBe(401)
+    expect(res.body.success).toBe(false)
+    expect(res.body.message).toBe('Tidak terautentikasi')
+  })
 })
