@@ -132,6 +132,10 @@ class App implements IApp {
     }
   }
 
+  public getAppInstance(): Application {
+    return this.app
+  }
+
   private setupGracefulShutdown(): void {
     const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGQUIT']
 

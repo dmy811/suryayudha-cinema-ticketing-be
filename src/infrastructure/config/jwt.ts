@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken'
 
 const getKey = (key: string) => {
-  return process.env[key]?.replace(/\\n/g, '\n') as string
+  const base64Key = process.env[key]!
+  const pemKey = Buffer.from(base64Key, 'base64').toString('utf-8')
+  return pemKey
 }
 export function signJwt(
   object: Object,
