@@ -15,6 +15,8 @@ import { IApp } from '@infrastructure/types/app.type'
 import { IRoutes } from '@infrastructure/types/route.type'
 import { scheduleAllJobs } from '@infrastructure/cron-jobs'
 import { setupSwagger } from '@src/docs/swagger'
+import { createRateLimiter } from '@/shared/middlewares/rateLimiterFactory'
+import { globalLimiter, loginLimiter } from '@/infrastructure/config/rateLimitConfig'
 
 class App implements IApp {
   private app: Application
@@ -86,6 +88,12 @@ class App implements IApp {
 
   private initializeRoutes(): void {
     setupSwagger(this.app)
+    this.app.use(createRateLimiter(globalLimiter, (req) => `ip:${req.ip}`))
+    this.app.use(
+      '/api/v1/auth/login',
+      createRateLimiter(loginLimiter, (req) => `ip:${req.ip}`)
+    )
+    this.app.use('/api/v1/')
     this.app.use('/api', this.routes.getRoutes())
   }
 

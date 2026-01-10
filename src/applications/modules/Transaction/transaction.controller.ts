@@ -6,6 +6,8 @@ import { validateAdmin } from '@shared/middlewares/valiadateAdmin'
 import { cache } from '@/infrastructure/cache/cache'
 import { setCache } from '@/infrastructure/cache/setCache'
 import { logger } from '@/shared/logger/logger'
+import { createRateLimiter } from '@/shared/middlewares/rateLimiterFactory'
+import { burstLimiter } from '@/infrastructure/config/rateLimitConfig'
 
 export class TransactionController {
   private readonly transactionRouter: Router
@@ -15,7 +17,12 @@ export class TransactionController {
   }
 
   private initializeTransactionRoutes(): void {
-    this.transactionRouter.post('/', authenticate, this.createBooking)
+    this.transactionRouter.post(
+      '/',
+      authenticate,
+      createRateLimiter(burstLimiter, (req) => `user:${req.user!.id}`),
+      this.createBooking
+    )
     this.transactionRouter.get(
       '/',
       cache({ prefix: 'transactions', ttl: 60 * 60 }),
