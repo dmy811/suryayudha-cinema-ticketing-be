@@ -1,86 +1,340 @@
-openapi: 3.0.3
+openapi: 3.0.4
 info:
-  title: Surya Yudha Cinema Booking Backend - Api Documentation
-  version: 1.0.0
-  description: Dokumentasi backend aplikasi Cinema E-Ticket Booking Platform (Surya Yudha)
+  title: E-Ticket Surya Yudha Cinema
+  description: Open Api Documentation for E-Ticket Surya Yudha Cinema
+  version: 0.1.9
 
 servers:
   - url: http://localhost:3000/api/v1
-    description: Local Development
+    description: (Local) server
 
 tags:
   - name: Auth
-    description: Endpoints otentikasi
-  - name: Movies
-    description: Endpoints film
+    description: Authentication & authorization
 
-paths:
-  /movies:
-    get:
-      $ref: './paths/movies/list.yaml'
-    post:
-      $ref: './paths/movies/create.yaml'
-
-  /movies/{id}:
-    get:
-      $ref: './paths/movies/detail.yaml'
-    patch:
-      $ref: './paths/movies/update.yaml'
-    delete:
-      $ref: './paths/movies/delete.yaml'
-
-  /auth/login:
-    post:
-      $ref: './paths/auth/login.yaml'
-
-  /auth/register:
-    post:
-      $ref: './paths/auth/register.yaml'
-
-  /auth/logout:
-    post:
-      $ref: './paths/auth/logout.yaml'
-
+# components:
+#   securitySchemes:
+#     BearerAuth:
+#       type: http
+#       scheme: bearer
+#       bearerFormat: JWT
 components:
   securitySchemes:
-    cookieAuth:
+    CookieAuth:
       type: apiKey
       in: cookie
       name: accessToken
-      description: Cookie HttpOnly berisi JWT (accessToken)
 
-  responses:
-    SuccessResponse:
-      $ref: './components/responses.yaml#/SuccessResponse'
-    CreatedResponse:
-      $ref: './components/responses.yaml#/CreatedResponse'
-    NotFoundResponse:
-      $ref: './components/responses.yaml#/NotFoundResponse'
-    ValidationErrorResponse:
-      $ref: './components/responses.yaml#/ValidationErrorResponse'
-    UnauthorizedResponse:
-      $ref: './components/responses.yaml#/UnauthorizedResponse'
+paths:
+  /health:
+    get:
+      tags:
+        - Auth
+      servers:
+        - url: http://localhost:3000
+      summary: Health check API
+      description: Check API service health (Admin only)
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: API is healthy
 
-  schemas:
-    RegisterDto:
-      $ref: './schemas/auth.yaml#/RegisterDto'
-    LoginDto:
-      $ref: './schemas/auth.yaml#/LoginDto'
-    AuthUser:
-      $ref: './schemas/auth.yaml#/AuthUser'
-    LoginSuccess:
-      $ref: './schemas/auth.yaml#/LoginSuccess'
+  /health/db:
+    get:
+      tags:
+        - Auth
+      servers:
+        - url: http://localhost:3000
+      summary: Health check database
+      description: Check database connection (Admin only)
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Database is connected
 
-    ErrorResponse:
-      $ref: './schemas/common.yaml#/ErrorResponse'
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, passwordConfirmation]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                passwordConfirmation:
+                  type: string
+      responses:
+        '201':
+          description: Success register
 
-    Movie:
-      $ref: './schemas/movies.yaml#/Movie'
-    MovieGenre:
-      $ref: './schemas/movies.yaml#/MovieGenre'
-    Genre:
-      $ref: './schemas/movies.yaml#/Genre'
-    MovieListResponse:
-      $ref: './schemas/movies.yaml#/MovieListResponse'
-    CreateMovieDto:
-      $ref: './schemas/movies.yaml#/CreateMovieDto'
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login success
+
+  /auth/login-admin:
+    post:
+      tags:
+        - Auth
+      summary: Login admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Admin login success
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Token refreshed
+
+  /auth/google:
+    get:
+      tags:
+        - Auth
+      summary: Google OAuth login
+      responses:
+        '302':
+          description: Redirect to Google OAuth
+
+  /auth/google/callback:
+    get:
+      tags:
+        - Auth
+      summary: Google OAuth callback
+      responses:
+        '200':
+          description: Google login success
+
+  /auth/facebook:
+    get:
+      tags:
+        - Auth
+      summary: Facebook OAuth login
+      responses:
+        '302':
+          description: Redirect to Facebook OAuth
+
+  /auth/facebook/callback:
+    get:
+      tags:
+        - Auth
+      summary: Facebook OAuth callback
+      responses:
+        '200':
+          description: Facebook login success
+
+  /auth/resend-verification-token:
+    get:
+      tags:
+        - Auth
+      summary: Resend email verification token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: Verification email resent
+
+  /auth/verify-email:
+    get:
+      tags:
+        - Auth
+      summary: Verify email
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified
+
+  /auth/profile:
+    get:
+      tags:
+        - Auth
+      summary: Get user profile
+      security:
+        # - CookieAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: User profile data
+
+  /auth/update-profile:
+    patch:
+      tags:
+        - Auth
+      summary: Update user profile
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                profile_url:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+
+  /auth/change-password:
+    patch:
+      tags:
+        - Auth
+      summary: Change password
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword, newPasswordConfirmation]
+              properties:
+                oldPassword:
+                  type: string
+                newPassword:
+                  type: string
+                newPasswordConfirmation:
+                  type: string
+      responses:
+        '200':
+          description: Password changed
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Forgot password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: Reset password email sent
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Reset password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - passwordResetCode
+                - newPassword
+                - newPasswordConfirmation
+              properties:
+                email:
+                  type: string
+                passwordResetCode:
+                  type: string
+                newPassword:
+                  type: string
+                newPasswordConfirmation:
+                  type: string
+      responses:
+        '200':
+          description: Password reset success
+
+  /auth/check-auth:
+    get:
+      tags:
+        - Auth
+      summary: Check authentication
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Authenticated
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout user
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Logout success

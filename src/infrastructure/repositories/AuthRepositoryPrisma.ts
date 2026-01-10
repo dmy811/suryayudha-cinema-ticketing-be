@@ -306,7 +306,7 @@ export class AuthRepositoryPrisma implements IAuthRepository {
             <p>Terimakasih atas kepercayaan anda untuk menggunakan layanan kami.</p>
             <div style="text-align: center; margin: 30px 0">
               <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #5f6fff"
-                >${resetPasswordToken}</span
+                >token=${resetPasswordToken}</span
               >
             </div>
             <p>Gunakan kode diatas untuk mereset password akun anda.</p>

@@ -5,6 +5,7 @@ vi.mock('nodemailer')
 vi.mock('passport', () => {
   return {
     default: {
+      use: vi.fn(),
       initialize: () => (req: any, res: any, next: any) => next(),
       authenticate: () => (req: any, res: any, next: any) => {
         req.user = {
@@ -30,7 +31,7 @@ let app: Application
 
 let profilePicImageBuffer: Buffer
 beforeAll(async () => {
-  const filePath = path.join(__dirname, '../public/img/cinema-booking.png')
+  const filePath = path.join(__dirname, '../../public/img/cinema-booking.png')
   profilePicImageBuffer = fs.readFileSync(filePath)
 })
 beforeEach(() => {
@@ -39,59 +40,119 @@ beforeEach(() => {
   app = appInstance.getAppInstance()
 })
 
-describe('Auth E2E Flow (Success Case)', () => {
-  it('(Success) POST /api/v1/auth/register -> Register User', async () => {
+describe('E2E Auth - Flow to Make account', () => {
+  it('(Success) -> Register user -> Verify email', async () => {
     const registerBody = {
       name: 'dims',
       email: 'dimasmukhtary@gmail.com',
       password: '00000000',
       passwordConfirmation: '00000000'
     }
-    const res = await supertest(app).post('/api/v1/auth/register').send(registerBody).expect(201)
+    const responseRegister = await supertest(app)
+      .post('/api/v1/auth/register')
+      .send(registerBody)
+      .expect(201)
 
-    expect(res.statusCode).toBe(201)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe(
+    expect(sentEmails.length).toBeGreaterThan(0)
+
+    const lastEmail = sentEmails[sentEmails.length - 1]
+
+    const tokenMatch = lastEmail.html.match(/token=([0-9]{6})/)
+    expect(tokenMatch).not.toBeNull()
+
+    const token = tokenMatch![1]
+
+    const responseVerifyEmail = await supertest(app)
+      .get(`/api/v1/auth/verify-email?token=${token}&email=dimasmukhtary@gmail.com`)
+      .expect(200)
+
+    expect(responseRegister.statusCode).toBe(201)
+    expect(responseRegister.body.success).toBe(true)
+    expect(responseRegister.body.message).toBe(
       'Berhasil register dan verifikasi link telah dikirim ke email anda!, silahkan cek email untuk verifikasi'
     )
-  })
 
-  it('(Success) POST /api/v1/auth/resend-verification-token -> Resend Verification Link', async () => {
-    const res = await supertest(app)
+    expect(responseVerifyEmail.statusCode).toBe(200)
+    expect(responseVerifyEmail.body.success).toBe(true)
+    expect(responseVerifyEmail.body.message).toBe('Email berhasil diverifikasi')
+  })
+})
+
+describe('E2E Auth - Flow to user get and update their profile', () => {
+  it('(Success) -> Login(Authenticated) First -> Get profile -> Update profile', async () => {
+    const responseLogin = await supertest(app)
+      .post('/api/v1/auth/login')
+      .send({
+        email: 'dimasmukhtary@gmail.com',
+        password: '00000000'
+      })
+      .expect(200)
+
+    const cookies = responseLogin.headers['set-cookie']
+    expect(cookies).toBeDefined()
+
+    const responseGetProfile = await supertest(app)
+      .get('/api/v1/auth/profile')
+      .set('Cookie', cookies)
+      .expect(200)
+
+    const responseUpdateProfile = await supertest(app)
+      .patch('/api/v1/auth/update-profile')
+      .set('Cookie', cookies)
+      .field('name', 'update name dims')
+      .attach('profile_url', profilePicImageBuffer, 'cinema-booking.png')
+      .expect(200)
+
+    expect(responseLogin.statusCode).toBe(200)
+    expect(responseLogin.body.success).toBe(true)
+    expect(responseLogin.body.message).toBe('Login berhasil')
+
+    expect(responseGetProfile.statusCode).toBe(200)
+    expect(responseGetProfile.body.success).toBe(true)
+    expect(responseGetProfile.body.message).toBe('Profile berhasil diambil')
+    expect(responseGetProfile.body.data).toBeDefined()
+
+    expect(responseUpdateProfile.statusCode).toBe(200)
+    expect(responseUpdateProfile.body.success).toBe(true)
+    expect(responseUpdateProfile.body.message).toBe('Profile berhasil diupdate')
+    expect(responseUpdateProfile.body.data).toBeDefined()
+  })
+})
+
+describe('E2E Auth - Flow to resend verification link and verify email', () => {
+  it('(Success) -> Resend verification link -> Verify email', async () => {
+    const responseResendVerificationLink = await supertest(app)
       .post('/api/v1/auth/resend-verification-token')
       .send({ email: 'dimasmukhtary@gmail.com' })
       .expect(200)
 
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Link verifikasi berhasil dikirim ulang')
+    expect(sentEmails.length).toBeGreaterThan(0)
+
+    const lastEmail = sentEmails[sentEmails.length - 1]
+
+    const tokenMatch = lastEmail.html.match(/token=([0-9]{6})/)
+    expect(tokenMatch).not.toBeNull()
+
+    const token = tokenMatch![1]
+
+    const responseVerifyEmail = await supertest(app)
+      .get(`/api/v1/auth/verify-email?token=${token}&email=dimasmukhtary@gmail.com`)
+      .expect(200)
+
+    expect(responseResendVerificationLink.statusCode).toBe(200)
+    expect(responseResendVerificationLink.body.success).toBe(true)
+    expect(responseResendVerificationLink.body.message).toBe(
+      'Link verifikasi berhasil dikirim ulang'
+    )
+
+    expect(responseVerifyEmail.statusCode).toBe(200)
+    expect(responseVerifyEmail.body.success).toBe(true)
+    expect(responseVerifyEmail.body.message).toBe('Email berhasil diverifikasi')
   })
+})
 
-  it('(Success) POST /api/v1/auth/login-admin -> Login Admin', async () => {
-    const loginBody = {
-      email: 'joker@gmail.com',
-      password: 'jokerjoker'
-    }
-    const res = await supertest(app).post('/api/v1/auth/login-admin').send(loginBody).expect(200)
-
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Login admin berhasil')
-  })
-
-  it('(Success) POST /api/v1/auth/login -> Login User', async () => {
-    const loginBody = {
-      email: 'dimasmukhtary@gmail.com',
-      password: '00000000'
-    }
-    const res = await supertest(app).post('/api/v1/auth/login').send(loginBody).expect(200)
-
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Login berhasil')
-  })
-
-  it('(Success) POST /api/v1/auth/google/callback ->  Google Callback', async () => {
+describe('E2E Auth - Flow for oauth google and facebook to calling callback handler', () => {
+  it('(Success) ->  Google Callback', async () => {
     process.env.CLIENT_URL = 'http://localhost:3000'
     const res = await supertest(app).get('/api/v1/auth/google/callback')
 
@@ -99,54 +160,60 @@ describe('Auth E2E Flow (Success Case)', () => {
     expect(res.headers.location).toBe('http://localhost:3000')
   })
 
-  it('(Success) POST /api/v1/auth/facebook/callback -> Facebook Callback', async () => {
+  it('(Success) -> Facebook Callback', async () => {
     process.env.CLIENT_URL = 'http://localhost:3000'
     const res = await supertest(app).get('/api/v1/auth/facebook/callback')
 
     expect(res.statusCode).toBe(302)
     expect(res.headers.location).toBe('http://localhost:3000')
   })
+})
 
-  it('(Success) POST /api/v1/auth/refresh -> Refresh Token', async () => {
-    const res = await supertest(app)
+describe('E2E Auth - Flow to rotate refresh token', () => {
+  it('(Success) -> Login Admin/User -> Refresh token', async () => {
+    const loginBody = {
+      email: 'joker@gmail.com',
+      password: 'jokerjoker'
+    }
+    const responseLogin = await supertest(app)
+      .post('/api/v1/auth/login-admin')
+      .send(loginBody)
+      .expect(200)
+
+    const cookies = responseLogin.headers['set-cookie']
+    expect(cookies).toBeDefined()
+
+    const responseRefreshToken = await supertest(app)
       .post('/api/v1/auth/refresh')
-      .set('Cookie', ['refreshToken=01983'])
-      .expect(200)
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Refresh token berhasil')
-  })
-
-  it('(Success) GET /api/v1/auth/profile -> Get Profile', async () => {
-    const res = await supertest(app)
-      .get('/api/v1/auth/profile')
-      .set('Cookie', ['accessToken=01983'])
+      .set('Cookie', cookies)
       .expect(200)
 
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Profile berhasil diambil')
-    expect(res.body.data).toBeDefined()
-  })
+    expect(responseLogin.statusCode).toBe(200)
+    expect(responseLogin.body.success).toBe(true)
+    expect(responseLogin.body.message).toBe('Login admin berhasil')
 
-  it('(Success) PATCH /api/v1/auth/update-profile -> Update Profile', async () => {
-    const res = await supertest(app)
-      .patch('/api/v1/auth/update-profile')
-      .set('Cookie', ['accessToken=01983'])
-      .field('name', 'update name dims')
-      .attach('profile_url', profilePicImageBuffer, 'cinema-booking.png')
+    expect(responseRefreshToken.statusCode).toBe(200)
+    expect(responseRefreshToken.body.success).toBe(true)
+    expect(responseRefreshToken.body.message).toBe('Refresh token berhasil')
+  })
+})
+
+describe('E2E Auth - Flow to change password', () => {
+  it('(Success) -> Login/Authenticate First -> Change Password', async () => {
+    const responseLogin = await supertest(app)
+      .post('/api/v1/auth/login')
+      .send({
+        email: 'dimasmukhtary@gmail.com',
+        password: '00000000'
+      })
       .expect(200)
 
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Profile berhasil diupdate')
-    expect(res.body.data).toBeDefined()
-  })
+    const cookies = responseLogin.headers['set-cookie']
+    expect(cookies).toBeDefined()
 
-  it('(Success) PATCH /api/v1/auth/change-password -> Change Password', async () => {
-    const res = await supertest(app)
+    const responseChangePassword = await supertest(app)
       .patch('/api/v1/auth/change-password')
-      .set('Cookie', ['accessToken=01983'])
+      .set('Cookie', cookies)
       .send({
         oldPassword: '00000000',
         newPassword: '99999999',
@@ -154,45 +221,70 @@ describe('Auth E2E Flow (Success Case)', () => {
       })
       .expect(200)
 
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Password berhasil diubah')
-    expect(res.body.data).toBeDefined()
-  })
+    expect(responseLogin.statusCode).toBe(200)
+    expect(responseLogin.body.success).toBe(true)
+    expect(responseLogin.body.message).toBe('Login berhasil')
 
-  it('(Success) POST /api/v1/auth/forgot-password -> Send Token Reset Password to Email', async () => {
-    const res = await supertest(app)
+    expect(responseChangePassword.statusCode).toBe(200)
+    expect(responseChangePassword.body.success).toBe(true)
+    expect(responseChangePassword.body.message).toBe('Password berhasil diubah')
+    expect(responseChangePassword.body.data).toBeDefined()
+  })
+})
+
+describe('E2E Auth - Flow to reset password', () => {
+  it('(Success) -> Send token reset password -> Reset password', async () => {
+    const responseSendTokenResetPassword = await supertest(app)
       .post('/api/v1/auth/forgot-password')
       .send({
         email: 'dimasmukhtary@gmail.com'
       })
       .expect(200)
 
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Token reset password berhasil dikirim')
-  })
+    expect(sentEmails.length).toBeGreaterThan(0)
 
-  it('(Success) POST /api/v1/auth/reset-password -> Reset Password', async () => {
-    const res = await supertest(app)
+    const lastEmail = sentEmails[sentEmails.length - 1]
+
+    const tokenMatch = lastEmail.html.match(/token=([0-9]{6})/)
+    expect(tokenMatch).not.toBeNull()
+
+    const token = tokenMatch![1]
+
+    const responseResetPassword = await supertest(app)
       .post('/api/v1/auth/reset-password')
       .send({
         email: 'dimasmukhtary@gmail.com',
-        passwordResetCode: 'reset-password',
+        passwordResetCode: token,
         newPassword: '88888888',
         newPasswordConfirmation: '88888888'
       })
       .expect(200)
 
-    expect(res.statusCode).toBe(200)
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Password berhasil direset')
-  })
+    expect(responseSendTokenResetPassword.statusCode).toBe(200)
+    expect(responseSendTokenResetPassword.body.success).toBe(true)
+    expect(responseSendTokenResetPassword.body.message).toBe(
+      'Token reset password berhasil dikirim'
+    )
 
+    expect(responseResetPassword.statusCode).toBe(200)
+    expect(responseResetPassword.body.success).toBe(true)
+    expect(responseResetPassword.body.message).toBe('Password berhasil direset')
+  })
+})
+
+describe('Auth E2E - Others', () => {
   it('(Success) GET /api/v1/auth/check-auth -> Check is Authenticater', async () => {
+    const responseLogin = await supertest(app).post('/api/v1/auth/login').send({
+      email: 'dimasmukhtary@gmail.com',
+      password: '88888888'
+    })
+
+    const cookies = responseLogin.headers['set-cookie']
+    expect(cookies).toBeDefined()
+
     const res = await supertest(app)
       .get('/api/v1/auth/check-auth')
-      .set('Cookie', ['accessToken=23842'])
+      .set('Cookie', cookies)
       .expect(200)
 
     expect(res.statusCode).toBe(200)
@@ -212,36 +304,8 @@ describe('Auth E2E Flow (Success Case)', () => {
   })
 })
 
-describe('E2E Auth - Verify Email', () => {
-  it('(Success) Register → Verify Email', async () => {
-    await supertest(app)
-      .post('/api/v1/auth/register')
-      .send({
-        name: 'Dimas',
-        email: 'dimasmukhtary@gmail.com',
-        password: 'password123'
-      })
-      .expect(201)
-    expect(sentEmails.length).toBeGreaterThan(0)
-
-    const lastEmail = sentEmails[sentEmails.length - 1]
-
-    const tokenMatch = lastEmail.html.match(/token=([a-zA-Z0-9]+)/)
-    expect(tokenMatch).not.toBeNull()
-
-    const token = tokenMatch![1]
-
-    const res = await supertest(app)
-      .get(`/api/v1/auth/verify-email?token=${token}&email=dimasmukhtary@gmail.com`)
-      .expect(200)
-
-    expect(res.body.success).toBe(true)
-    expect(res.body.message).toBe('Email berhasil diverifikasi')
-  })
-})
-
 describe('Auth E2E Flow (Failed Case)', () => {
-  it('(Failed) POST /api/v1/auth/register -> Register User (email not provided)', async () => {
+  it('(Failed) -> Register User (email not provided)', async () => {
     const registerBody = {
       name: 'dims',
       password: '00000000',
@@ -256,7 +320,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) POST /api/v1/auth/register -> Register User (email already registered)', async () => {
+  it('(Failed) -> Register User (email already registered)', async () => {
     const registerBody = {
       name: 'dims',
       email: 'joker@gmail.com',
@@ -272,7 +336,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) POST /api/v1/auth/resend-verification-token -> Resend verification link (email not exists)', async () => {
+  it('(Failed) -> Resend verification link (email not exists)', async () => {
     const res = await supertest(app)
       .post('/api/v1/auth/resend-verification-token')
       .send({ email: 'sample@gmail.com' })
@@ -287,7 +351,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/verify-email -> Verify Email (email not exists)', async () => {
+  it('(Failed) -> Verify Email (email not exists)', async () => {
     const res = await supertest(app)
       .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
       .expect(404)
@@ -301,9 +365,9 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/verify-email -> Verify Email (token is wrong)', async () => {
+  it('(Failed) -> Verify Email (token is wrong)', async () => {
     const res = await supertest(app)
-      .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
+      .get('/api/v1/auth/verify-email?token=978241&email=dimasmukhtary@gmail.com')
       .expect(400)
 
     expect(res.statusCode).toBe(400)
@@ -313,9 +377,23 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/verify-email -> Verify Email (email already verified)', async () => {
+  it('(Failed) -> Verify Email (email already verified)', async () => {
+    await supertest(app)
+      .post('/api/v1/auth/resend-verification-token')
+      .send({ email: 'dimasmukhtary@gmail.com' })
+      .expect(200)
+
+    expect(sentEmails.length).toBeGreaterThan(0)
+
+    const lastEmail = sentEmails[sentEmails.length - 1]
+
+    const tokenMatch = lastEmail.html.match(/token=([0-9]{6})/)
+    expect(tokenMatch).not.toBeNull()
+
+    const token = tokenMatch![1]
+
     const res = await supertest(app)
-      .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
+      .get(`/api/v1/auth/verify-email?token=${token}&email=sample@gmail.com`)
       .expect(400)
 
     expect(res.statusCode).toBe(400)
@@ -325,19 +403,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/verify-email -> Verify Email (token expired)', async () => {
-    const res = await supertest(app)
-      .get('/api/v1/auth/verify-email?token=978241&email=sample@gmail.com')
-      .expect(400)
-
-    expect(res.statusCode).toBe(400)
-    expect(res.body.success).toBe(false)
-    expect(res.body.message).toBe('Error saat verifikasi email: Token verifikasi sudah kadaluarsa')
-    expect(res.body.errorCode).toBe('BAD_REQUEST')
-    expect(res.body.timeStamp).toEqual(expect.any(String))
-  })
-
-  it('(Failed) GET /api/v1/auth/login -> Login User (fields not provided)', async () => {
+  it('(Failed) -> Login User (fields not provided)', async () => {
     const requestBody = {
       email: 'sample@gmail.com'
     }
@@ -350,7 +416,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/login -> Login User (email not registered)', async () => {
+  it('(Failed) -> Login User (email not registered)', async () => {
     const requestBody = {
       email: 'sample@gmail.com',
       password: '00000000'
@@ -366,7 +432,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/login -> Login User (admin trying to login in this route)', async () => {
+  it('(Failed) -> Login User (admin trying to login in this route)', async () => {
     const requestBody = {
       email: 'joker@gmail.com',
       password: 'jokerjoker'
@@ -380,7 +446,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/login -> Login User (password doenst match)', async () => {
+  it('(Failed) -> Login User (password doenst match)', async () => {
     const requestBody = {
       email: 'dimasmukhtary@gmail.com',
       password: 'jokerjoker'
@@ -394,7 +460,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) POST /api/v1/auth/refresh -> Refresh Token (refresh token cookie doesnt exist in cookie', async () => {
+  it('(Failed) -> Refresh Token (refresh token cookie doesnt exist in cookie', async () => {
     const res = await supertest(app).post('/api/v1/auth/refresh').expect(401)
 
     expect(res.statusCode).toBe(401)
@@ -406,23 +472,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) POST /api/v1/auth/refresh -> Refresh Token (refresh token cookie doesnt exist in redis', async () => {
-    const mockRefreshToken = 'qeqwq'
-    const res = await supertest(app)
-      .post('/api/v1/auth/refresh')
-      .set('Cookie', [`refreshToken=${mockRefreshToken}`])
-      .expect(401)
-
-    expect(res.statusCode).toBe(401)
-    expect(res.body.success).toBe(false)
-    expect(res.body.message).toBe(
-      'Error saat refresh token: Refresh token di verifikasi oleh redis, akses ditolak karena refresh token tidak ada atau tidak valid'
-    )
-    expect(res.body.errorCode).toBe('UNAUTHORIZED')
-    expect(res.body.timeStamp).toEqual(expect.any(String))
-  })
-
-  it('(Failed) GET /api/v1/auth/login-admin -> Login Admin (fields not provided)', async () => {
+  it('(Failed) -> Login Admin (fields not provided)', async () => {
     const requestBody = {
       email: 'sample@gmail.com'
     }
@@ -435,7 +485,7 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/login-admin -> Login Admin (email not registered)', async () => {
+  it('(Failed) -> Login Admin (email not registered)', async () => {
     const requestBody = {
       email: 'sample@gmail.com',
       password: '00000000'
@@ -451,9 +501,9 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/login-admin -> Login Admin (user trying to login in this route)', async () => {
+  it('(Failed) -> Login Admin (user trying to login in this route)', async () => {
     const requestBody = {
-      email: 'joker@gmail.com',
+      email: 'dimasmukhtary@gmail.com',
       password: 'jokerjoker'
     }
 
@@ -465,10 +515,10 @@ describe('Auth E2E Flow (Failed Case)', () => {
     expect(res.body.timeStamp).toEqual(expect.any(String))
   })
 
-  it('(Failed) GET /api/v1/auth/login-admin -> Login Admin (password doenst match)', async () => {
+  it('(Failed) -> Login Admin (password doenst match)', async () => {
     const requestBody = {
-      email: 'dimasmukhtary@gmail.com',
-      password: 'jokerjoker'
+      email: 'joker@gmail.com',
+      password: '00000000000'
     }
 
     const res = await supertest(app).post('/api/v1/auth/login-admin').send(requestBody).expect(400)
