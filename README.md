@@ -41,6 +41,8 @@
 | Database | PostgreSQL |
 | ORM | Prisma |
 | Cache / Session | Redis (ioredis) |
+| Rate limit | Redis (rate-limiter-flexible) |
+| Hashing | Argon2 |
 | Authentication | JWT (RS256), Passport.js |
 | OAuth | Google OAuth 2.0, Facebook OAuth |
 | Payment Gateway | Midtrans |
