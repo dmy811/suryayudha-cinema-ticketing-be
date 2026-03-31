@@ -241,8 +241,8 @@ Copy the `.b64` values into your `.env` file.
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/surya-yudha-e-ticket-cinema-booking-backend.git
-cd surya-yudha-e-ticket-cinema-booking-backend
+git clone https://github.com/dmy811/suryayudha-cinema-ticketing-be.git
+cd suryayudha-cinema-ticketing-be
 
 # Install dependencies
 pnpm install
