@@ -430,7 +430,7 @@ User logs out → Refresh Token invalidated (Redis blacklist)
 ```
 User selects seats → POST /transactions (status: initiated, booking_expires_at set)
      ↓
-User applies voucher (optional) → PATCH /vouchers/:id/apply
+User applies voucher (optional) → PATCH vouchers/:transactionId/apply
      ↓
 User initiates payment → POST /transactions/:id/pay
      → Midtrans Snap URL returned (status: pending)
