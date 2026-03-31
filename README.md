@@ -27,7 +27,7 @@
 
 ## 🧭 Overview
 
-`surya-yudha-e-ticket-cinema-booking-backend` is a production-ready REST API built with **Node.js**, **Express**, and **PostgreSQL**. It powers the full lifecycle of a cinema booking system — from browsing movies and scheduling showtime seats, to processing payments via Midtrans and generating e-tickets with unique QR codes.
+`surya-yudha-e-ticket-cinema-booking-backend` is a production-ready REST API built with **Node.js**, **Express**, and **PostgreSQL**. It powers the full lifecycle of a cinema booking system — from browsing movies and scheduling showtime seats, to processing payments via Midtrans and generating e-tickets.
 
 ---
 
