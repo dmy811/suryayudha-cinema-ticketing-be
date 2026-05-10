@@ -172,7 +172,7 @@ Make sure you have the following installed:
 
 ### Environment Variables
 
-Create a `.env` file in the root directory. Use `.env.example` as a reference:
+Create a `.env.development` file in the root directory. Use `.env.development.example` as a reference:
 
 ```env
 # App
