@@ -25,13 +25,13 @@
     "gen:public:refreshtoken:b64": "base64 -w0 keys/refreshTokenPublicKey.pem > keys/refreshTokenPublicKey.b64",
     "prisma:migrate:dev": "cross-env NODE_ENV=development prisma migrate dev --schema=./src/infrastructure/database/prisma/schema.prisma",
     "prisma:migrate:test": "cross-env NODE_ENV=test prisma migrate deploy --schema=./src/infrastructure/database/prisma/schema.prisma",
-    "prisma:migrate:prod": "cross-env NODE_ENV=production prisma migrate deploy --schema=./src/infrastructure/database/prisma/schema.prisma",
+    "prisma:migrate:prod": "prisma migrate deploy --schema=./src/infrastructure/database/prisma/schema.prisma",
     "prisma:generate:dev": "cross-env NODE_ENV=development prisma generate --schema=./src/infrastructure/database/prisma/schema.prisma",
     "prisma:generate:test": "cross-env NODE_ENV=test prisma generate --schema=./src/infrastructure/database/prisma/schema.prisma",
-    "prisma:generate:prod": "cross-env NODE_ENV=production prisma generate --schema=./src/infrastructure/database/prisma/schema.prisma",
+    "prisma:generate:prod": "prisma generate --schema=./src/infrastructure/database/prisma/schema.prisma",
     "prisma:seed:dev": "cross-env NODE_ENV=development node ./build/infrastructure/database/seed.js",
     "prisma:seed:test": "cross-env NODE_ENV=test tsx ./src/infrastructure/database/seed.ts",
-    "prisma:seed:prod": "cross-env NODE_ENV=production node ./build/infrastructure/database/seed.js",
+    "prisma:seed:prod": "node ./build/infrastructure/database/seed.js",
     "prisma:studio:dev": "cross-env NODE_ENV=development prisma studio --schema=./src/infrastructure/database/prisma/schema.prisma"
   },
   "keywords": [
@@ -46,6 +46,7 @@
   "description": "Backend of the Surya Yudha Cinema e-ticket booking application, enabling users to browse movies, select showtimes, choose seats, and purchase tickets online.",
   "dependencies": {
     "@prisma/client": "^6.6.0",
+    "prisma": "^6.6.0",
     "@types/cors": "^2.8.17",
     "argon2": "^0.41.1",
     "compression": "^1.8.0",
@@ -98,7 +99,6 @@
     "nodemon": "^3.1.9",
     "openapi-typescript": "^7.10.1",
     "prettier": "^3.5.3",
-    "prisma": "^6.6.0",
     "rimraf": "^6.1.0",
     "supertest": "^7.1.4",
     "tsc-alias": "^1.8.16",

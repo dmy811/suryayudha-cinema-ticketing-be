@@ -2,11 +2,11 @@ import dotenv from 'dotenv'
 
 import { logger } from '@shared/logger/logger'
 
+dotenv.config()
+
 const env = process.env.NODE_ENV || 'development'
-const envFile = `.env.${env}`
 
 logger.info({
   from: 'config:loadEnv',
-  message: `✅ Environment set to ${env} and using ${envFile} file ✅`
+  message: `✅ Environment loaded (.env) | NODE_ENV=${env} ✅`
 })
-dotenv.config({ path: envFile })

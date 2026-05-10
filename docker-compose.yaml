@@ -3,7 +3,7 @@ services:
     image: postgres:15
     container_name: surya-postgresql
     env_file:
-      - .env.production
+      - .env
     volumes:
       - surya-postgresql-data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -21,12 +21,12 @@ services:
     command: >
       sh -c "redis-server --requirepass $${REDIS_PASSWORD} --appendonly yes"
     env_file:
-      - .env.production
+      - .env
     volumes:
       - surya-redis-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '$${REDIS_PASSWORD}', 'ping']
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD}" ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,7 +39,7 @@ services:
     image: surya-backend
     container_name: surya-backend
     env_file:
-      - .env.production
+      - .env
     environment:
       - NODE_ENV=production
     ports:

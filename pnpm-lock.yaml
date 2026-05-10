@@ -71,6 +71,9 @@ importers:
       passport-google-oauth20:
         specifier: ^2.0.0
         version: 2.0.0
+      prisma:
+        specifier: ^6.6.0
+        version: 6.19.1(typescript@5.9.3)
       rate-limiter-flexible:
         specifier: ^9.0.1
         version: 9.0.1
@@ -162,9 +165,6 @@ importers:
       prettier:
         specifier: ^3.5.3
         version: 3.7.4
-      prisma:
-        specifier: ^6.6.0
-        version: 6.19.1(typescript@5.9.3)
       rimraf:
         specifier: ^6.1.0
         version: 6.1.2

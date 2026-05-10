@@ -93,7 +93,6 @@ class App implements IApp {
       '/api/v1/auth/login',
       createRateLimiter(loginLimiter, (req) => `ip:${req.ip}`)
     )
-    this.app.use('/api/v1/')
     this.app.use('/api', this.routes.getRoutes())
   }
 
