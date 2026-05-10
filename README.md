@@ -172,49 +172,92 @@ Make sure you have the following installed:
 
 ### Environment Variables
 
-Create a `.env.development` file in the root directory. Use `.env.development.example` as a reference:
+Create a `.env` file in the root directory. Use `.env.example` as a reference:
 
 ```env
-# App
-PORT=5000
-CORS_ORIGIN=
+PORT=3000
 
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/surya_yudha_cinema
+NODE_ENV=production
 
-# Redis
-REDIS_PORT=
-REDIS_HOST=
-REDIS_PASSWORD=
+CORS_ORIGIN=http://localhost:5173
+CLIENT_URL=http://localhost:5173
 
-# JWT (Base64 encoded RSA keys)
-ACCESS_TOKEN_PRIVATE_KEY=<base64_encoded_private_key>
-ACCESS_TOKEN_PUBLIC_KEY=<base64_encoded_public_key>
-REFRESH_TOKEN_PRIVATE_KEY=<base64_encoded_private_key>
-REFRESH_TOKEN_PUBLIC_KEY=<base64_encoded_public_key>
+# =========================
+# PostgreSQL
+# =========================
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgress
+POSTGRES_DB=e-ticket-cinema
 
-# Google OAuth
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_CALLBACK_URL=http://localhost:5000/api/v1/auth/google/callback
+DATABASE_URL=postgresql://postgres:postgress@surya-postgresql:5432/e-ticket-cinema
 
-# Facebook OAuth
-FACEBOOK_CLIENT_ID=your_facebook_app_id
-FACEBOOK_CLIENT_SECRET=your_facebook_app_secret
-FACEBOOK_CALLBACK_URL=http://localhost:5000/api/v1/auth/facebook/callback
 
-# Nodemailer
-USER_EMAIL=your_email@gmail.com
-APP_PASSWORD=your_app_password
+# =========================
+# JWT
+# =========================
+ACCESS_TOKEN_PRIVATE_KEY=
+ACCESS_TOKEN_PUBLIC_KEY=
 
-# Midtrans
-MIDTRANS_SERVER_KEY=your_midtrans_server_key
-MIDTRANS_CLIENT_KEY=your_midtrans_client_key
+REFRESH_TOKEN_PRIVATE_KEY=
+REFRESH_TOKEN_PUBLIC_KEY=
 
+
+# =========================
 # ImageKit
-IMAGEKIT_PUBLIC_KEY=your_imagekit_public_key
-IMAGEKIT_PRIVATE_KEY=your_imagekit_private_key
-IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/your_id
+# =========================
+IMAGEKIT_PUBLIC_KEY=
+IMAGEKIT_PRIVATE_KEY=
+IMAGEKIT_URL_ENDPOINT=
+
+
+# =========================
+# Mail
+# =========================
+APP_PASSWORD=
+USER_EMAIL=
+
+
+# =========================
+# Midtrans
+# =========================
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+
+
+# =========================
+# Google OAuth
+# =========================
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=
+
+
+# =========================
+# Facebook OAuth
+# =========================
+FACEBOOK_CLIENT_ID=
+FACEBOOK_CLIENT_SECRET=
+FACEBOOK_CALLBACK_URL=
+
+
+# =========================
+# Redis
+# =========================
+REDIS_HOST=surya-redis
+REDIS_PORT=6379
+REDIS_PASSWORD=frontendredisbackend
+
+
+# =========================
+# Logging
+# =========================
+LOG_DIRECTORY=logs
+
+
+# =========================
+# Admin
+# =========================
+ADMIN_PASSWORD=
 ```
 
 ---
