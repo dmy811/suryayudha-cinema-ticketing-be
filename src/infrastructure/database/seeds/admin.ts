@@ -9,6 +9,7 @@ export default async function seed(prisma: PrismaClient) {
       name: 'Joker',
       email: 'joker@gmail.com',
       role: 'admin',
+      is_verified: true,
       password: process.env.ADMIN_PASSWORD as string
     }
   })
