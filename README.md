@@ -177,7 +177,11 @@ Create a `.env` file in the root directory. Use `.env.example` as a reference:
 ```env
 PORT=3000
 
-NODE_ENV=production
+# =========================
+# Important key for testing
+# =========================
+RUN_PRISMA_MIGRATE=true
+RUN_PRISMA_SEED=true
 
 CORS_ORIGIN=http://localhost:5173
 CLIENT_URL=http://localhost:5173
@@ -274,6 +278,8 @@ pnpm gen:private:accesstoken:b64
 pnpm gen:public:accesstoken:b64
 
 # Refresh Token keys
+pnpm gen:private:refreshtoken
+pnpm gen:public:refreshtoken
 pnpm gen:private:refreshtoken:b64
 pnpm gen:public:refreshtoken:b64
 ```
@@ -499,6 +505,9 @@ Admin scans & validates ticket → PATCH /tickets/validate
 
 This project uses **Vitest** + **Supertest** for unit and integration testing.
 
+Make sure to fill the RUN_PRISMA_MIGRATE=true, RUN_PRISMA_SEED=true, and change DATABASE__URL to your testing database
+
+
 ```bash
 # Run all tests once
 pnpm test
@@ -506,17 +515,12 @@ pnpm test
 # Run tests in watch mode
 pnpm test:watch
 
-# Run with coverage report
-pnpm test
-
 # Run tests for CI (JUnit + JSON reports)
 pnpm test:ci
 
 # Open Vitest UI
 pnpm test:ui
 ```
-
-Tests are run against a **separate test database** (`NODE_ENV=test`) defined in your `.env.test` file.  (*the testing not all done)
 
 ---
 
