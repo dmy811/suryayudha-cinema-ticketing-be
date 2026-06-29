@@ -123,7 +123,16 @@ export class WebhookController {
             return tickets
           })
 
+          logger.info({
+            from: 'webhook:midtrans:kirim-email',
+            message: 'preparing sending email tickets'
+          })
+
           try {
+            logger.info({
+              from: 'webhook:midtrans:kirim-email',
+              message: 'preparing more sending email tickets'
+            })
             const schedule = transaction.transaction_items[0].schedule_seat.schedule
             const formatOptions: Intl.DateTimeFormatOptions = {
               weekday: 'long',
@@ -163,9 +172,18 @@ export class WebhookController {
                   subject: `E-Tiket Anda untuk ${schedule.movie.title} (Kursi ${correspondingItem.seat_label})`,
                   html: emailHtml
                 })
+
+                logger.info({
+                  from: 'webhook:midtrans:kirim-email',
+                  message: 'sending email tickets......'
+                })
               }
             }
           } catch (emailError) {
+            logger.error({
+              from: 'webhook:midtrans:kirim-email',
+              message: 'error saay mengirim email tiket'
+            })
             console.error('Gagal mengirim email e-tiket:', emailError)
           }
         }

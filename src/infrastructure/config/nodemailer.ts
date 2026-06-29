@@ -27,6 +27,11 @@ export async function sendEmail(data: MailDatA): Promise<void> {
       subject: data.subject,
       html: data.html
     })
+
+    logger.info({
+      from: 'nodemailer:kirim-email',
+      message: 'success sending email......'
+    })
   } catch (error: any) {
     logger.error({
       from: 'nodemailer:sendEmail',
